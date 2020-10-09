@@ -297,6 +297,7 @@ const createVNodeWithArgsTransform = (
   )
 }
 
+// Todo 作用是什么？
 export const InternalObjectKey = `__vInternal`
 
 const normalizeKey = ({ key }: VNodeProps): VNode['key'] =>
@@ -342,6 +343,7 @@ function _createVNode(
 
   // class component normalization.
   if (isClassComponent(type)) {
+    // Todo 没找到__vccOpts这个属性是在哪里设置的
     type = type.__vccOpts
   }
 

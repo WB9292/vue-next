@@ -17,6 +17,7 @@ import { devtoolsInitApp, devtoolsUnmountApp } from './devtools'
 import { version } from '.'
 
 export interface App<HostElement = any> {
+  // package.json中的version，主版本号
   version: string
   config: AppConfig
   use(plugin: Plugin, ...options: any[]): this
@@ -36,6 +37,7 @@ export interface App<HostElement = any> {
   _uid: number
   _component: ConcreteComponent
   _props: Data | null
+  // 挂载的DOM容器
   _container: HostElement | null
   _context: AppContext
 }
@@ -49,6 +51,7 @@ export type OptionMergeFunction = (
 
 export interface AppConfig {
   // @private
+  // 判断是否是元素标签，应该是项目内部使用，不能从外部传入
   readonly isNativeTag?: (tag: string) => boolean
 
   performance: boolean
@@ -96,6 +99,7 @@ export type Plugin =
 
 export function createAppContext(): AppContext {
   return {
+    // App实例
     app: null as any,
     config: {
       isNativeTag: NO,
@@ -131,10 +135,12 @@ export function createAppAPI<HostElement>(
     }
 
     const context = createAppContext()
+    // 插件列表与单个App实例关联
     const installedPlugins = new Set()
 
     let isMounted = false
 
+    // 个人理解：单个App实例就是2.x里的根Vue实例
     const app: App = (context.app = {
       _uid: uid++,
       _component: rootComponent as ConcreteComponent,
@@ -156,6 +162,11 @@ export function createAppAPI<HostElement>(
         }
       },
 
+      /**
+       * 用于安装插件，注意，插件列表与单个App实例关联，如果创建多个App实例，需要再次添加插件
+       * @param plugin
+       * @param options
+       */
       use(plugin: Plugin, ...options: any[]) {
         if (installedPlugins.has(plugin)) {
           __DEV__ && warn(`Plugin has already been applied to target app.`)
@@ -174,13 +185,19 @@ export function createAppAPI<HostElement>(
         return app
       },
 
+      /**
+       * 混入，注意，与单个App实例关联
+       * @param mixin
+       */
       mixin(mixin: ComponentOptions) {
         if (__FEATURE_OPTIONS_API__) {
           if (!context.mixins.includes(mixin)) {
             context.mixins.push(mixin)
             // global mixin with props/emits de-optimizes props/emits
             // normalization caching.
+            // Todo emits是干嘛的？
             if (mixin.props || mixin.emits) {
+              // Todo deopt是干嘛的？
               context.deopt = true
             }
           } else if (__DEV__) {
@@ -195,10 +212,17 @@ export function createAppAPI<HostElement>(
         return app
       },
 
+      /**
+       * 添加/获取组件，注意，与单个App实例关联
+       * @param name
+       * @param component
+       */
       component(name: string, component?: Component): any {
         if (__DEV__) {
           validateComponentName(name, context.config)
         }
+
+        // 获取组件对象
         if (!component) {
           return context.components[name]
         }
@@ -209,6 +233,11 @@ export function createAppAPI<HostElement>(
         return app
       },
 
+      /**
+       * 添加/获取指令，注意，与单个App实例关联
+       * @param name
+       * @param directive
+       */
       directive(name: string, directive?: Directive) {
         if (__DEV__) {
           validateDirectiveName(name)
@@ -255,6 +284,8 @@ export function createAppAPI<HostElement>(
             devtoolsInitApp(app, version)
           }
 
+          // !.是Typescipt的Non-null assertion operator
+          // https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-0.html#non-null-assertion-operator
           return vnode.component!.proxy
         } else if (__DEV__) {
           warn(

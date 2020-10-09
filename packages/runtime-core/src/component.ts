@@ -58,6 +58,8 @@ import {
 import { startMeasure, endMeasure } from './profiling'
 import { devtoolsComponentAdded } from './devtools'
 
+// ES6 规格将键值对（key-value map）的数据结构称为 Record，其中的每一组键值对称为 field。这就是说，一个 Record 由多个 field 组成，而每个 field 都包含一个键名（key）和一个键值（value）
+// 详情可查看：https://es6.ruanyifeng.com/#docs/spec
 export type Data = Record<string, unknown>
 
 /**

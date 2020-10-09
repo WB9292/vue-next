@@ -46,11 +46,16 @@ export const render = ((...args) => {
   ensureRenderer().render(...args)
 }) as RootRenderFunction<Element>
 
+// Todo 应该与服务端渲染有关，暂不研究
 export const hydrate = ((...args) => {
   ensureHydrationRenderer().hydrate(...args)
 }) as RootHydrateFunction
 
+/**
+ * 创建Vue实例的全局方法
+ */
 export const createApp = ((...args) => {
+  // createApp方法在runtime-core/src/apiCreateApp.ts内
   const app = ensureRenderer().createApp(...args)
 
   if (__DEV__) {
@@ -61,7 +66,9 @@ export const createApp = ((...args) => {
   app.mount = (containerOrSelector: Element | string): any => {
     const container = normalizeContainer(containerOrSelector)
     if (!container) return
+    // 根组件
     const component = app._component
+    // 支持纯函数作为组件
     if (!isFunction(component) && !component.render && !component.template) {
       component.template = container.innerHTML
     }
@@ -69,6 +76,7 @@ export const createApp = ((...args) => {
     container.innerHTML = ''
     const proxy = mount(container)
     container.removeAttribute('v-cloak')
+    // Todo 不晓得data-v-app是干嘛的
     container.setAttribute('data-v-app', '')
     return proxy
   }

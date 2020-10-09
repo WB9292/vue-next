@@ -422,10 +422,13 @@ function baseCreateRenderer(
   createHydrationFns?: typeof createHydrationFunctions
 ): any {
   // compile-time feature flags check
+  // Todo 暂不研究
   if (__ESM_BUNDLER__ && !__TEST__) {
     initFeatureFlags()
   }
 
+  // patchProp和forcePatchProp：runtime-dom/src/patchProp.ts内
+  // 剩余属性：runtime-dom/src/nodeOps.ts内
   const {
     insert: hostInsert,
     remove: hostRemove,
