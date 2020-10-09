@@ -123,7 +123,7 @@ describe('compiler: parse', () => {
       })
     })
 
-    test('lonly "<" don\'t separate nodes', () => {
+    test('lonely "<" doesn\'t separate nodes', () => {
       const ast = baseParse('a < b', {
         onError: err => {
           if (err.code !== ErrorCodes.INVALID_FIRST_CHARACTER_OF_TAG_NAME) {
@@ -144,7 +144,7 @@ describe('compiler: parse', () => {
       })
     })
 
-    test('lonly "{{" don\'t separate nodes', () => {
+    test('lonely "{{" doesn\'t separate nodes', () => {
       const ast = baseParse('a {{ b', {
         onError: error => {
           if (error.code !== ErrorCodes.X_MISSING_INTERPOLATION_END) {
@@ -374,6 +374,35 @@ describe('compiler: parse', () => {
         }
       })
     })
+
+    test('comments option', () => {
+      __DEV__ = false
+      const astNoComment = baseParse('<!--abc-->')
+      const astWithComments = baseParse('<!--abc-->', { comments: true })
+      __DEV__ = true
+
+      expect(astNoComment.children).toHaveLength(0)
+      expect(astWithComments.children).toHaveLength(1)
+    })
+
+    // #2217
+    test('comments in the <pre> tag should be removed in production mode', () => {
+      __DEV__ = false
+      const rawText = `<p/><!-- foo --><p/>`
+      const ast = baseParse(`<pre>${rawText}</pre>`)
+      __DEV__ = true
+
+      expect((ast.children[0] as ElementNode).children).toMatchObject([
+        {
+          type: NodeTypes.ELEMENT,
+          tag: 'p'
+        },
+        {
+          type: NodeTypes.ELEMENT,
+          tag: 'p'
+        }
+      ])
+    })
   })
 
   describe('Element', () => {
@@ -539,7 +568,7 @@ describe('compiler: parse', () => {
       })
     })
 
-    test('v-is without `isNativeTag`', () => {
+    test('v-is with `isNativeTag`', () => {
       const ast = baseParse(
         `<div></div><div v-is="'foo'"></div><Comp></Comp>`,
         {
@@ -566,7 +595,7 @@ describe('compiler: parse', () => {
       })
     })
 
-    test('v-is with `isNativeTag`', () => {
+    test('v-is without `isNativeTag`', () => {
       const ast = baseParse(`<div></div><div v-is="'foo'"></div><Comp></Comp>`)
 
       expect(ast.children[0]).toMatchObject({

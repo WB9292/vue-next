@@ -1,5 +1,6 @@
 import {
   describe,
+  Component,
   defineComponent,
   PropType,
   ref,
@@ -9,7 +10,8 @@ import {
   expectType,
   ComponentPublicInstance,
   ComponentOptions,
-  SetupContext
+  SetupContext,
+  h
 } from './index'
 
 describe('with object props', () => {
@@ -18,6 +20,7 @@ describe('with object props', () => {
     b: string
     e?: Function
     bb: string
+    bbb: string
     cc?: string[] | undefined
     dd: { n: 1 }
     ee?: () => string
@@ -27,6 +30,8 @@ describe('with object props', () => {
     eee: () => { a: string }
     fff: (a: number, b: string) => { a: boolean }
     hhh: boolean
+    ggg: 'foo' | 'bar'
+    ffff: (a: number, b: string) => { a: boolean }
     validated?: string
   }
 
@@ -44,6 +49,11 @@ describe('with object props', () => {
       // default value should infer type and make it non-void
       bb: {
         default: 'hello'
+      },
+      bbb: {
+        // Note: default function value requires arrow syntax + explicit
+        // annotation
+        default: (props: any) => (props.bb as string) || 'foo'
       },
       // explicit type casting
       cc: Array as PropType<string[]>,
@@ -77,8 +87,19 @@ describe('with object props', () => {
         type: Boolean,
         required: true
       },
+      // default + type casting
+      ggg: {
+        type: String as PropType<'foo' | 'bar'>,
+        default: 'foo'
+      },
+      // default + function
+      ffff: {
+        type: Function as PropType<(a: number, b: string) => { a: boolean }>,
+        default: (a: number, b: string) => ({ a: a > +b })
+      },
       validated: {
         type: String,
+        // validator requires explicit annotation
         validator: (val: unknown) => val !== ''
       }
     },
@@ -88,6 +109,7 @@ describe('with object props', () => {
       expectType<ExpectedProps['b']>(props.b)
       expectType<ExpectedProps['e']>(props.e)
       expectType<ExpectedProps['bb']>(props.bb)
+      expectType<ExpectedProps['bbb']>(props.bbb)
       expectType<ExpectedProps['cc']>(props.cc)
       expectType<ExpectedProps['dd']>(props.dd)
       expectType<ExpectedProps['ee']>(props.ee)
@@ -97,6 +119,8 @@ describe('with object props', () => {
       expectType<ExpectedProps['eee']>(props.eee)
       expectType<ExpectedProps['fff']>(props.fff)
       expectType<ExpectedProps['hhh']>(props.hhh)
+      expectType<ExpectedProps['ggg']>(props.ggg)
+      expectType<ExpectedProps['ffff']>(props.ffff)
       expectType<ExpectedProps['validated']>(props.validated)
 
       // @ts-expect-error props should be readonly
@@ -128,6 +152,7 @@ describe('with object props', () => {
       expectType<ExpectedProps['eee']>(props.eee)
       expectType<ExpectedProps['fff']>(props.fff)
       expectType<ExpectedProps['hhh']>(props.hhh)
+      expectType<ExpectedProps['ggg']>(props.ggg)
 
       // @ts-expect-error props should be readonly
       expectError((props.a = 1))
@@ -146,6 +171,7 @@ describe('with object props', () => {
       expectType<ExpectedProps['eee']>(this.eee)
       expectType<ExpectedProps['fff']>(this.fff)
       expectType<ExpectedProps['hhh']>(this.hhh)
+      expectType<ExpectedProps['ggg']>(this.ggg)
 
       // @ts-expect-error props on `this` should be readonly
       expectError((this.a = 1))
@@ -162,6 +188,8 @@ describe('with object props', () => {
     }
   })
 
+  expectType<Component>(MyComponent)
+
   // Test TSX
   expectType<JSX.Element>(
     <MyComponent
@@ -177,6 +205,7 @@ describe('with object props', () => {
       eee={() => ({ a: 'eee' })}
       fff={(a, b) => ({ a: a > +b })}
       hhh={false}
+      ggg="foo"
       // should allow class/style as attrs
       class="bar"
       style={{ color: 'red' }}
@@ -187,6 +216,17 @@ describe('with object props', () => {
     />
   )
 
+  expectType<Component>(
+    <MyComponent
+      b="b"
+      dd={{ n: 1 }}
+      ddd={['ddd']}
+      eee={() => ({ a: 'eee' })}
+      fff={(a, b) => ({ a: a > +b })}
+      hhh={false}
+    />
+  )
+
   // @ts-expect-error missing required props
   expectError(<MyComponent />)
 
@@ -194,8 +234,33 @@ describe('with object props', () => {
     // @ts-expect-error wrong prop types
     <MyComponent a={'wrong type'} b="foo" dd={{ n: 1 }} ddd={['foo']} />
   )
+  expectError(
+    // @ts-expect-error wrong prop types
+    <MyComponent ggg="baz" />
+  )
   // @ts-expect-error
   expectError(<MyComponent b="foo" dd={{ n: 'string' }} ddd={['foo']} />)
+
+  // `this` should be void inside of prop validators and prop default factories
+  defineComponent({
+    props: {
+      myProp: {
+        type: Number,
+        validator(val: unknown): boolean {
+          // @ts-expect-error
+          return val !== this.otherProp
+        },
+        default(): number {
+          // @ts-expect-error
+          return this.otherProp + 1
+        }
+      },
+      otherProp: {
+        type: Number,
+        required: true
+      }
+    }
+  })
 })
 
 // describe('type inference w/ optional props declaration', () => {
@@ -532,7 +597,11 @@ describe('extends with mixins', () => {
         type: String,
         default: 'mP1'
       },
-      mP2: Boolean
+      mP2: Boolean,
+      mP3: {
+        type: Boolean,
+        required: true
+      }
     },
     data() {
       return {
@@ -546,6 +615,10 @@ describe('extends with mixins', () => {
       p2: {
         type: Number,
         default: 2
+      },
+      p3: {
+        type: Boolean,
+        required: true
       }
     },
     data() {
@@ -598,11 +671,20 @@ describe('extends with mixins', () => {
   })
 
   // Test TSX
-  expectType<JSX.Element>(<MyComponent mP1="p1" mP2 p1 p2={1} z={'z'} />)
+  expectType<JSX.Element>(<MyComponent mP1="p1" mP2 mP3 p1 p2={1} p3 z={'z'} />)
+
+  // mP1, mP2, p1, and p2 have default value. these are not required
+  expectType<JSX.Element>(<MyComponent mP3 p3 z={'z'} />)
 
   // missing required props
   // @ts-expect-error
-  expectError(<MyComponent />)
+  expectError(<MyComponent mP3 p3 /* z='z' */ />)
+  // missing required props from mixin
+  // @ts-expect-error
+  expectError(<MyComponent /* mP3 */ p3 z="z" />)
+  // missing required props from extends
+  // @ts-expect-error
+  expectError(<MyComponent mP3 /* p3 */ z="z" />)
 
   // wrong prop types
   // @ts-expect-error
@@ -635,6 +717,16 @@ describe('defineComponent', () => {
     const comp = defineComponent({})
     defineComponent({
       components: { comp }
+    })
+  })
+
+  test('should accept class components with receiving constructor arguments', () => {
+    class Comp {
+      static __vccOpts = {}
+      constructor(_props: { foo: string }) {}
+    }
+    defineComponent({
+      components: { Comp }
     })
   })
 })
@@ -735,3 +827,114 @@ describe('componentOptions setup should be `SetupContext`', () => {
     ctx: SetupContext
   ) => any)
 })
+
+describe('extract instance type', () => {
+  const Base = defineComponent({
+    props: {
+      baseA: {
+        type: Number,
+        default: 1
+      }
+    }
+  })
+  const MixinA = defineComponent({
+    props: {
+      mA: {
+        type: String,
+        default: ''
+      }
+    }
+  })
+  const CompA = defineComponent({
+    extends: Base,
+    mixins: [MixinA],
+    props: {
+      a: {
+        type: Boolean,
+        default: false
+      },
+      b: {
+        type: String,
+        required: true
+      },
+      c: Number
+    }
+  })
+
+  const compA = {} as InstanceType<typeof CompA>
+
+  expectType<boolean>(compA.a)
+  expectType<string>(compA.b)
+  expectType<number | undefined>(compA.c)
+  // mixins
+  expectType<string>(compA.mA)
+  // extends
+  expectType<number>(compA.baseA)
+
+  //  @ts-expect-error
+  expectError((compA.a = true))
+  //  @ts-expect-error
+  expectError((compA.b = 'foo'))
+  //  @ts-expect-error
+  expectError((compA.c = 1))
+  //  @ts-expect-error
+  expectError((compA.mA = 'foo'))
+  //  @ts-expect-error
+  expectError((compA.baseA = 1))
+})
+
+describe('async setup', () => {
+  type GT = string & { __brand: unknown }
+  const Comp = defineComponent({
+    async setup() {
+      // setup context
+      return {
+        a: ref(1),
+        b: {
+          c: ref('hi')
+        },
+        d: reactive({
+          e: ref('hello' as GT)
+        })
+      }
+    },
+    render() {
+      // assert setup context unwrapping
+      expectType<number>(this.a)
+      expectType<string>(this.b.c.value)
+      expectType<GT>(this.d.e)
+
+      // setup context properties should be mutable
+      this.a = 2
+    }
+  })
+
+  const vm = {} as InstanceType<typeof Comp>
+  // assert setup context unwrapping
+  expectType<number>(vm.a)
+  expectType<string>(vm.b.c.value)
+  expectType<GT>(vm.d.e)
+
+  // setup context properties should be mutable
+  vm.a = 2
+})
+
+// check if defineComponent can be exported
+export default {
+  // function components
+  a: defineComponent(_ => h('div')),
+  // no props
+  b: defineComponent({
+    data() {
+      return {}
+    }
+  }),
+  c: defineComponent({
+    props: ['a']
+  }),
+  d: defineComponent({
+    props: {
+      a: Number
+    }
+  })
+}
