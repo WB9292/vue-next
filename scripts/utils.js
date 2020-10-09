@@ -1,6 +1,10 @@
 const fs = require('fs')
 const chalk = require('chalk')
 
+/**
+ * packages文件夹下不在targets中的目录包括：
+ * 1. runtime-test
+ */
 const targets = (exports.targets = fs.readdirSync('packages').filter(f => {
   if (!fs.statSync(`packages/${f}`).isDirectory()) {
     return false
@@ -12,6 +16,7 @@ const targets = (exports.targets = fs.readdirSync('packages').filter(f => {
   return true
 }))
 
+// 该方法通过partialTargets对targets进行筛选，并以数组形式返回筛选的结果
 exports.fuzzyMatchTarget = (partialTargets, includeAllMatching) => {
   const matched = []
   partialTargets.forEach(partialTarget => {

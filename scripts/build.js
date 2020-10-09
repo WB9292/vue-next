@@ -87,6 +87,7 @@ async function build(target) {
         sourceMap ? `SOURCE_MAP:true` : ``
       ]
         .filter(Boolean)
+        // 注意，--environment的参数使用','分割，符合rollup的预期
         .join(',')
     ],
     { stdio: 'inherit' }

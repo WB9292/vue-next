@@ -3,13 +3,24 @@ import ts from 'rollup-plugin-typescript2'
 import replace from '@rollup/plugin-replace'
 import json from '@rollup/plugin-json'
 
+/**
+ * env中参数的含义：
+ * TARGET：构建的目标包，在packages目录下。
+ * SOURCE_MAP：配置rollup的sourcemap选项
+ */
+
 if (!process.env.TARGET) {
   throw new Error('TARGET package must be specified via --environment flag.')
 }
 
+// 主版本
 const masterVersion = require('./package.json').version
+// packages目录的路径
 const packagesDir = path.resolve(__dirname, 'packages')
+// packages下的目标包的目录的路径
 const packageDir = path.resolve(packagesDir, process.env.TARGET)
+// 目标包的目录名称，比如对于packageDir为'./packages/compiler-core'（注意，packageDir本身是绝对目录，这里只是举例）时，
+// name的值为'compile-core'
 const name = path.basename(packageDir)
 const resolve = p => path.resolve(packageDir, p)
 const pkg = require(resolve(`package.json`))
@@ -74,6 +85,12 @@ if (process.env.NODE_ENV === 'production') {
 
 export default packageConfigs
 
+/**
+ * 该方法用于创建rollup的配置
+ * @param {*} format
+ * @param {*} output
+ * @param {*} plugins
+ */
 function createConfig(format, output, plugins = []) {
   if (!output) {
     console.log(require('chalk').yellow(`invalid format: "${format}"`))
@@ -83,14 +100,18 @@ function createConfig(format, output, plugins = []) {
   output.sourcemap = !!process.env.SOURCE_MAP
   output.externalLiveBindings = false
 
+  // 是否是生产环境的构建
   const isProductionBuild =
     process.env.__DEV__ === 'false' || /\.prod\.js$/.test(output.file)
+  // Todo esm-bundler和esm-browser的区别是什么？
   const isBundlerESMBuild = /esm-bundler/.test(format)
   const isBrowserESMBuild = /esm-browser/.test(format)
+  // Todo 是指commonjs的打包吗？
   const isNodeBuild = format === 'cjs'
   const isGlobalBuild = /global/.test(format)
 
   if (isGlobalBuild) {
+    // UMD输出的名称
     output.name = packageOptions.name
   }
 
