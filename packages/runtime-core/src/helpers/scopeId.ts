@@ -4,6 +4,7 @@
 
 import { withCtx } from './withRenderContext'
 
+// Todo 不清楚currentScopeId是解决什么问题的
 export let currentScopeId: string | null = null
 const scopeIdStack: string[] = []
 

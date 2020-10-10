@@ -41,6 +41,7 @@ const pendingPostFlushCbs: SchedulerCb[] = []
 let activePostFlushCbs: SchedulerCb[] | null = null
 let postFlushIndex = 0
 
+// Todo 这两个Promise有什么区别？
 const resolvedPromise: Promise<any> = Promise.resolve()
 let currentFlushPromise: Promise<void> | null = null
 
@@ -153,6 +154,11 @@ export function flushPreFlushCbs(
   }
 }
 
+/**
+ * 触发pendingPostFlushCbs中的回调函数
+ * Todo 具体细节还需要再研究一下
+ * @param seen
+ */
 export function flushPostFlushCbs(seen?: CountMap) {
   if (pendingPostFlushCbs.length) {
     const deduped = [...new Set(pendingPostFlushCbs)]

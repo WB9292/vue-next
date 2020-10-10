@@ -159,6 +159,7 @@ export type CreateComponentPublicInstance<
 
 // public properties exposed on the proxy, which is used as the render context
 // in templates (as `this` in the render option)
+// Todo 这个是组件创建的单个实例对象吗？
 export type ComponentPublicInstance<
   P = {}, // props type extracted from props option
   B = {}, // raw bindings returned from setup()
@@ -232,6 +233,7 @@ export interface ComponentRenderContext {
 
 export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
   get({ _: instance }: ComponentRenderContext, key: string) {
+
     const {
       ctx,
       setupState,

@@ -235,6 +235,7 @@ function createReplacePlugin(
     __NODE_JS__: isNodeBuild,
 
     // feature flags
+    // 新特性Suspense
     __FEATURE_SUSPENSE__: true,
     __FEATURE_OPTIONS_API__: isBundlerESMBuild ? `__VUE_OPTIONS_API__` : true,
     __FEATURE_PROD_DEVTOOLS__: isBundlerESMBuild

@@ -55,7 +55,7 @@ export const hydrate = ((...args) => {
  * 创建Vue实例的全局方法
  */
 export const createApp = ((...args) => {
-  // createApp方法在runtime-core/src/apiCreateApp.ts内
+  // 一般的正常流程中，createApp方法在runtime-core/src/apiCreateApp.ts内
   const app = ensureRenderer().createApp(...args)
 
   if (__DEV__) {
@@ -64,9 +64,10 @@ export const createApp = ((...args) => {
 
   const { mount } = app
   app.mount = (containerOrSelector: Element | string): any => {
+    // 容器DOM对象
     const container = normalizeContainer(containerOrSelector)
     if (!container) return
-    // 根组件
+    // 根组件，也就是调用createApp方法时，传入的组件
     const component = app._component
     // 支持纯函数作为组件
     if (!isFunction(component) && !component.render && !component.template) {

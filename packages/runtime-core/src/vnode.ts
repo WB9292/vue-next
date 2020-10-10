@@ -124,23 +124,30 @@ export interface VNode<
   /**
    * @internal
    */
+  // 标识是vnode对象
   __v_isVNode: true
   /**
    * @internal
    */
+  // Todo 与双向绑定有关，具体含义未知
   [ReactiveFlags.SKIP]: true
+  // 创建vnode对象的实例，比如一个组件对象，具体的值类型可查看VNodeTypes
   type: VNodeTypes
+  // Todo 应该可以认为是创建vnode对象的配置项吧
   props: (VNodeProps & ExtraProps) | null
+  // Todo 应该是与patch相关的键
   key: string | number | null
   ref: VNodeNormalizedRef | null
   scopeId: string | null // SFC only
   children: VNodeNormalizedChildren
+  // Todo 应该是vnode关联的组件实例对象
   component: ComponentInternalInstance | null
   dirs: DirectiveBinding[] | null
   transition: TransitionHooks<HostElement> | null
 
   // DOM
   el: HostNode | null
+  // Todo 猜测可能与3.x中<template>不需要有一个单独的根dom元素有关系
   anchor: HostNode | null // fragment anchor
   target: HostElement | null // teleport target
   targetAnchor: HostNode | null // teleport target anchor
@@ -166,6 +173,11 @@ export interface VNode<
 // can divide a template into nested blocks, and within each block the node
 // structure would be stable. This allows us to skip most children diffing
 // and only worry about the dynamic nodes (indicated by patch flags).
+
+// 翻译：由于v-if和v-for是节点结构可能动态改变的两个可能的方式，一旦我们考虑v-if分支和每个v-for片段块时，
+// 我们可以将一个模板划分为嵌套块，并且每个块内部的节点结构都是稳定的。这允许我们跳过大多数资源的比对，
+// 并且仅需要关心动态节点（通过patch标志标识）
+// Todo 翻译的有点不通顺，之后对这里边的内部逻辑理解更透彻后，再优化这里的翻译
 export const blockStack: (VNode[] | null)[] = []
 let currentBlock: VNode[] | null = null
 
@@ -198,6 +210,7 @@ export function closeBlock() {
 // Only tracks when this value is > 0
 // We are not using a simple boolean because this value may need to be
 // incremented/decremented by nested usage of v-once (see below)
+// Todo 不知道具体是干嘛的，猜测应该与3.x最新的性能优化有关
 let shouldTrack = 1
 
 /**
@@ -262,6 +275,7 @@ export function isSameVNodeType(n1: VNode, n2: VNode): boolean {
   if (
     __DEV__ &&
     n2.shapeFlag & ShapeFlags.COMPONENT &&
+    // Todo hmrDirtyComponents是干嘛的？
     hmrDirtyComponents.has(n2.type as ConcreteComponent)
   ) {
     // HMR only: if the component has been hot-updated, force a reload.
@@ -298,11 +312,13 @@ const createVNodeWithArgsTransform = (
 }
 
 // Todo 作用是什么？
+// 个人理解：该变量作为对象的键，用于标识这些对象是内部对象
 export const InternalObjectKey = `__vInternal`
 
 const normalizeKey = ({ key }: VNodeProps): VNode['key'] =>
   key != null ? key : null
 
+// Todo ref值的形式还是有待研究的
 const normalizeRef = ({ ref }: VNodeProps): VNodeNormalizedRefAtom | null => {
   return (ref != null
     ? isArray(ref)
@@ -318,11 +334,12 @@ export const createVNode = (__DEV__
 function _createVNode(
   type: VNodeTypes | ClassComponent | typeof NULL_DYNAMIC_COMPONENT,
   props: (Data & VNodeProps) | null = null,
-  children: unknown = null,
+  children: unknown = null, // Todo 这个是什么？type的子元素？
   patchFlag: number = 0,
   dynamicProps: string[] | null = null,
   isBlockNode = false
 ): VNode {
+  // runtime-core/src/helpers.ts --> resolveDynamicComponent()方法中可能会返回NULL_DYNAMIC_COMPONENT，表示没有解析出任何可用组件
   if (!type || type === NULL_DYNAMIC_COMPONENT) {
     if (__DEV__ && !type) {
       warn(`Invalid vnode type when creating vnode: ${type}.`)
@@ -330,10 +347,12 @@ function _createVNode(
     type = Comment
   }
 
+  // 现在支持通过vnode创建新vnode，可以！！！
   if (isVNode(type)) {
     // createVNode receiving an existing vnode. This happens in cases like
     // <component :is="vnode"/>
     // #2078 make sure to merge refs during the clone instead of overwriting it
+    // 能想到的使用场景是，将$slots等作为<component :is="vnode"/>中的vnode
     const cloned = cloneVNode(type, props, true /* mergeRef: true */)
     if (children) {
       normalizeChildren(cloned, children)
@@ -342,6 +361,7 @@ function _createVNode(
   }
 
   // class component normalization.
+  // Todo 感觉可能只有在单元测试时，才会成立，因为只有在单元测试中，才会为type设置__vccOpts属性
   if (isClassComponent(type)) {
     // Todo 没找到__vccOpts这个属性是在哪里设置的
     type = type.__vccOpts
@@ -368,10 +388,13 @@ function _createVNode(
   }
 
   // encode the vnode type information into a bitmap
+  // 使用二进制位标识vnode的类型信息
   const shapeFlag = isString(type)
     ? ShapeFlags.ELEMENT
+    // 3.x支持的suspense组件
     : __FEATURE_SUSPENSE__ && isSuspense(type)
       ? ShapeFlags.SUSPENSE
+      // 3.x支持的teleport组件
       : isTeleport(type)
         ? ShapeFlags.TELEPORT
         : isObject(type)
@@ -382,6 +405,7 @@ function _createVNode(
 
   if (__DEV__ && shapeFlag & ShapeFlags.STATEFUL_COMPONENT && isProxy(type)) {
     type = toRaw(type)
+    // Todo 这里提到了markRaw和shallowRef两个概念
     warn(
       `Vue received a Component which was made a reactive object. This can ` +
         `lead to unnecessary performance overhead, and should be avoided by ` +
@@ -397,6 +421,7 @@ function _createVNode(
     [ReactiveFlags.SKIP]: true,
     type,
     props,
+    // 获取props中的key属性的值
     key: props && normalizeKey(props),
     ref: props && normalizeRef(props),
     scopeId: currentScopeId,
@@ -454,6 +479,7 @@ function _createVNode(
   return vnode
 }
 
+// Todo 要理解这个方法，可能需要先理解一个全新的vnode对象是如何创建的，每个属性的含义又是什么
 export function cloneVNode<T, U>(
   vnode: VNode<T, U>,
   extraProps?: Data & VNodeProps | null,
@@ -572,6 +598,7 @@ export function cloneIfMounted(child: VNode): VNode {
   return child.el === null ? child : cloneVNode(child)
 }
 
+// Todo 该方法更深入的研究工作需要等到children研究明白之后，再回过头来看，children应该是在compiler中编译出来的，可以暂时将这个方法理解为对vnode对象的子元素的标准化处理
 export function normalizeChildren(vnode: VNode, children: unknown) {
   let type = 0
   const { shapeFlag } = vnode
@@ -624,6 +651,7 @@ export function normalizeChildren(vnode: VNode, children: unknown) {
     }
   }
   vnode.children = children as VNodeNormalizedChildren
+  // 将vnode的children的类型也一并存到vnode的shapeFlag中
   vnode.shapeFlag |= type
 }
 

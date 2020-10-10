@@ -117,6 +117,7 @@ export function initProps(
   isStateful: number, // result of bitwise flag comparison
   isSSR = false
 ) {
+  // 就像2.x一样，外部传入的rawProps可能是props或者attrs
   const props: Data = {}
   const attrs: Data = {}
   def(attrs, InternalObjectKey, 1)
@@ -244,6 +245,13 @@ export function updateProps(
   }
 }
 
+/**
+ * Todo 感觉这个方法是将rawProps转换为相应的props或者attrs
+ * @param instance
+ * @param rawProps
+ * @param props
+ * @param attrs
+ */
 function setFullProps(
   instance: ComponentInternalInstance,
   rawProps: Data | null,

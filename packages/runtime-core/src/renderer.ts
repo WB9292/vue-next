@@ -449,9 +449,9 @@ function baseCreateRenderer(
   // Note: functions inside this closure should use `const xxx = () => {}`
   // style in order to prevent being inlined by minifiers.
   const patch: PatchFn = (
-    n1,
-    n2,
-    container,
+    n1, // 旧vnode
+    n2, // 新vnode
+    container, // Todo 猜测应该是n2生成的el元素的父级容器DOM对象，也就是container是n1、h2生成的dom元素的父元素
     anchor = null,
     parentComponent = null,
     parentSuspense = null,
@@ -460,6 +460,7 @@ function baseCreateRenderer(
   ) => {
     // patching & not same type, unmount old tree
     if (n1 && !isSameVNodeType(n1, n2)) {
+      // 锚定的DOM元素，用于在根据n2生成新的DOM元素后，根据anchor插入相应的位置
       anchor = getNextHostNode(n1)
       unmount(n1, parentComponent, parentSuspense, true)
       n1 = null
@@ -2176,6 +2177,10 @@ function baseCreateRenderer(
     }
   }
 
+  /**
+   * 获取vnode元素对应的dom元素的下一个兄弟dom元素
+   * @param vnode
+   */
   const getNextHostNode: NextFn = vnode => {
     if (vnode.shapeFlag & ShapeFlags.COMPONENT) {
       return getNextHostNode(vnode.component!.subTree)
@@ -2183,6 +2188,10 @@ function baseCreateRenderer(
     if (__FEATURE_SUSPENSE__ && vnode.shapeFlag & ShapeFlags.SUSPENSE) {
       return vnode.suspense!.next()
     }
+    // 最后面的!是非空断言操作符，由于Vnode的anchor和el属性可能为null（可查看Vnode的接口定义），这样就不可以直接传递给
+    // hostNextSibling方法，因为hostNextSibling方法参数的类型定义没有为null的情况，加上最后的!表示
+    // (vnode.anchor || vnode.el)最终的值一定不会为null或undefined，这样就可以作为参数传入hostNextSibling方法而不会报错了，
+    // 可将!删除后看效果
     return hostNextSibling((vnode.anchor || vnode.el)!)
   }
 
@@ -2220,7 +2229,7 @@ function baseCreateRenderer(
   }
 
   const render: RootRenderFunction = (vnode, container) => {
-    if (vnode == null) {
+    if (vnode == null) { // vnode为null时，是卸载
       if (container._vnode) {
         unmount(container._vnode, null, null, true)
       }

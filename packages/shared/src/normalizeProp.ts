@@ -3,6 +3,7 @@ import { isNoUnitNumericStyleProp } from './domAttrConfig'
 
 export type NormalizedStyle = Record<string, string | number>
 
+// 该方法主要用于将字符形式（"width:100%;height:200px;"）的style转换为对象形式（{width:"100%", height:"200px"}）
 export function normalizeStyle(value: unknown): NormalizedStyle | undefined {
   if (isArray(value)) {
     const res: Record<string, string | number> = {}
@@ -23,6 +24,8 @@ export function normalizeStyle(value: unknown): NormalizedStyle | undefined {
   }
 }
 
+// exp1(?!exp2) 查找后面不是exp2的exp1
+// Todo 但是不知道这个正则表达式的含义是什么
 const listDelimiterRE = /;(?![^(]*\))/g
 const propertyDelimiterRE = /:(.+)/
 
@@ -56,6 +59,7 @@ export function stringifyStyle(styles: NormalizedStyle | undefined): string {
   return ret
 }
 
+// 将对象形式或者数组形式的class转换为字符串形式，比如['hello', 'world']转换为"hello world"
 export function normalizeClass(value: unknown): string {
   let res = ''
   if (isString(value)) {

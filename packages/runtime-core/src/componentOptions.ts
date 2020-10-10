@@ -78,6 +78,7 @@ export interface ComponentCustomOptions {}
 
 export type RenderFunction = () => VNodeChild
 
+// 最常用的对象形式的组件
 export interface ComponentOptionsBase<
   Props,
   RawBindings,

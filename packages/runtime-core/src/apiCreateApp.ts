@@ -16,9 +16,13 @@ import { RootHydrateFunction } from './hydration'
 import { devtoolsInitApp, devtoolsUnmountApp } from './devtools'
 import { version } from '.'
 
+/**
+ *
+ */
 export interface App<HostElement = any> {
   // package.json中的version，主版本号
   version: string
+  // 配置选项，比如2.x版本中的performance、optionMergeStrategies等，都是在这个对象中设置的
   config: AppConfig
   use(plugin: Plugin, ...options: any[]): this
   mixin(mixin: ComponentOptions): this
@@ -35,10 +39,13 @@ export interface App<HostElement = any> {
 
   // internal, but we need to expose these for the server-renderer and devtools
   _uid: number
+  // 调用createApp方法传入的组件实例参数
   _component: ConcreteComponent
+  // 调用createApp方法传入的rootProps参数
   _props: Data | null
   // 挂载的DOM容器
   _container: HostElement | null
+  // App实例关联的上下文对象
   _context: AppContext
 }
 
@@ -97,6 +104,7 @@ export type Plugin =
       install: PluginInstallFunction
     }
 
+// 创建App实例的上下文对象
 export function createAppContext(): AppContext {
   return {
     // App实例
@@ -110,9 +118,13 @@ export function createAppContext(): AppContext {
       errorHandler: undefined,
       warnHandler: undefined
     },
+    // 混入
     mixins: [],
+    // 组件
     components: {},
+    // 指令
     directives: {},
+    // 依赖注入
     provides: Object.create(null)
   }
 }
@@ -135,7 +147,7 @@ export function createAppAPI<HostElement>(
     }
 
     const context = createAppContext()
-    // 插件列表与单个App实例关联
+    // 插件列表，与单个App实例关联
     const installedPlugins = new Set()
 
     let isMounted = false
@@ -253,6 +265,11 @@ export function createAppAPI<HostElement>(
         return app
       },
 
+      /**
+       * 挂载方法
+       * @param rootContainer
+       * @param isHydrate Todo 可能与服务端渲染有关
+       */
       mount(rootContainer: HostElement, isHydrate?: boolean): any {
         if (!isMounted) {
           const vnode = createVNode(
@@ -264,13 +281,14 @@ export function createAppAPI<HostElement>(
           vnode.appContext = context
 
           // HMR root reload
+          // Todo HMR需要好好研究一下
           if (__DEV__) {
             context.reload = () => {
               render(cloneVNode(vnode), rootContainer)
             }
           }
 
-          if (isHydrate && hydrate) {
+          if (isHydrate && hydrate) { // Todo 服务端渲染有关，暂不研究
             hydrate(vnode as VNode<Node, Element>, rootContainer as any)
           } else {
             render(vnode, rootContainer)

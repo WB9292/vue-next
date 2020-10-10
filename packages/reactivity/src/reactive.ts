@@ -12,6 +12,7 @@ import {
 } from './collectionHandlers'
 import { UnwrapRef, Ref } from './ref'
 
+// Todo 这个枚举是干嘛的？四个值各是什么含义？
 export const enum ReactiveFlags {
   SKIP = '__v_skip',
   IS_REACTIVE = '__v_isReactive',
