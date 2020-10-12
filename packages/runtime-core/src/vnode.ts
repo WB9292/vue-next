@@ -140,7 +140,7 @@ export interface VNode<
   ref: VNodeNormalizedRef | null
   scopeId: string | null // SFC only
   children: VNodeNormalizedChildren
-  // Todo 应该是vnode关联的组件实例对象
+  // vnode关联的组件实例对象
   component: ComponentInternalInstance | null
   dirs: DirectiveBinding[] | null
   transition: TransitionHooks<HostElement> | null

@@ -397,7 +397,7 @@ let uid = 0
 
 export function createComponentInstance(
   vnode: VNode,
-  parent: ComponentInternalInstance | null,
+  parent: ComponentInternalInstance | null, // Todo 这个parent是当前组件实例所在的组件吗？
   suspense: SuspenseBoundary | null
 ) {
   const type = vnode.type as ConcreteComponent
