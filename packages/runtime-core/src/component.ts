@@ -81,6 +81,8 @@ export interface ComponentInternalOptions {
   /**
    * @internal
    */
+  // 对选项组件对象中的props进行标准化后的结果，详情可查看runtime-core/src/componentProps.ts中的normalizePropsOptions方法，
+  // 保存下来是为了防止重复标准化comp.props
   __props?: NormalizedPropsOptions
   /**
    * @internal
@@ -198,13 +200,14 @@ export type InternalRenderFunction = {
 export interface ComponentInternalInstance {
   uid: number
   type: ConcreteComponent
-  // 父组件实例
+  // 父组件内部实例
   parent: ComponentInternalInstance | null
+  // 根组件内部实例
   root: ComponentInternalInstance
   appContext: AppContext
   /**
    * Vnode representing this component in its parent's vdom tree
-   * 代表当前组件实例在其父元素中的vnode对象
+   * 代表当前内部组件实例在其父组件中的vnode对象，这个vnode对象上保存着当前内部组件实例在父组件中的一些信息，比如props、children等
    */
   vnode: VNode
   /**
@@ -262,6 +265,7 @@ export interface ComponentInternalInstance {
    * reoslved props options
    * @internal
    */
+  // 对选项组件对象中的props进行标准化后的结果，详情可查看runtime-core/src/componentProps.ts中的normalizePropsOptions方法
   propsOptions: NormalizedPropsOptions
   /**
    * resolved emits options
@@ -477,6 +481,7 @@ export function createComponentInstance(
   } else {
     instance.ctx = { _: instance }
   }
+  // 当parent不存在，说明vnode是App应用实例对应的虚拟dom，而其对应的instance就是根组件内部实例
   instance.root = parent ? parent.root : instance
   instance.emit = emit.bind(null, instance)
 

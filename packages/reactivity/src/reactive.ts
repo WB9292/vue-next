@@ -188,6 +188,7 @@ export function isProxy(value: unknown): boolean {
   return isReactive(value) || isReadonly(value)
 }
 
+// Todo 这个方法是做什么的？
 export function toRaw<T>(observed: T): T {
   return (
     (observed && toRaw((observed as Target)[ReactiveFlags.RAW])) || observed

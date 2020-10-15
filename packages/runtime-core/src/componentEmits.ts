@@ -123,11 +123,22 @@ export function emit(
   }
 }
 
+/**
+ * emits是Vue3支持的新特性，用于声明当前组件会触发的事件。
+ * 该方法用于标准化emits的值
+ * 个人理解：emits的作用主要有：
+ * 1）对触发事件的参数进行校验，Todo 如果校验不通过，会怎么做？不触发事件？
+ * 2）更加清晰的显示当前组件会触发的事件。（个人猜测，^_^）
+ * @param comp
+ * @param appContext
+ * @param asMixin
+ */
 export function normalizeEmitsOptions(
   comp: ConcreteComponent,
   appContext: AppContext,
   asMixin = false
 ): ObjectEmitsOptions | null {
+  // 如果已经标准化，则无需再标准化
   if (!appContext.deopt && comp.__emits !== undefined) {
     return comp.__emits
   }
@@ -168,6 +179,7 @@ export function normalizeEmitsOptions(
 // Check if an incoming prop key is a declared emit event listener.
 // e.g. With `emits: { click: null }`, props named `onClick` and `onclick` are
 // both considered matched listeners.
+// 如上所述，支持onClick和onclick形式的事件监听，所以这个方法用于判断key是否为onclick或onClick形式的键，而不是@click形式的特性
 export function isEmitListener(
   options: ObjectEmitsOptions | null,
   key: string
@@ -175,6 +187,7 @@ export function isEmitListener(
   if (!options || !isOn(key)) {
     return false
   }
+  // Todo 为什么要把Once替换为''，Once哪来的？
   key = key.replace(/Once$/, '')
   return (
     hasOwn(options, key[2].toLowerCase() + key.slice(3)) ||

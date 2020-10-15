@@ -10,6 +10,7 @@ declare var __COMMIT__: string
 declare var __VERSION__: string
 
 // Feature flags
+// Todo 与该选项关联的分支都没有进行分析
 declare var __FEATURE_OPTIONS_API__: boolean
 declare var __FEATURE_PROD_DEVTOOLS__: boolean
 // 3.x支持的suspense组件

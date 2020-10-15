@@ -133,7 +133,7 @@ export interface VNode<
   [ReactiveFlags.SKIP]: true
   // 创建vnode对象的实例，比如一个组件对象，具体的值类型可查看VNodeTypes
   type: VNodeTypes
-  // Todo 应该可以认为是创建vnode对象的配置项吧
+  // props保存着标签上解析的除@click事件形式之外的所有属性，比如<Hello name="James" onClick="submit" />中，name和onClick都在props中
   props: (VNodeProps & ExtraProps) | null
   // Todo 应该是与patch相关的键
   key: string | number | null

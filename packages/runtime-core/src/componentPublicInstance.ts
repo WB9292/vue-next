@@ -284,7 +284,7 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
       ) {
         accessCache![key] = AccessTypes.PROPS
         return props![key]
-      } else if (ctx !== EMPTY_OBJ && hasOwn(ctx, key)) {
+      } else if (ctx !== EMPTY_OBJ && hasOwn(ctx, key)) { // Todo ctx的值到底是什么？
         accessCache![key] = AccessTypes.CONTEXT
         return ctx[key]
       } else if (!__FEATURE_OPTIONS_API__ || !isInBeforeCreate) {

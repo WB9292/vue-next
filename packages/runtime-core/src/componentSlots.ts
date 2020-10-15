@@ -112,9 +112,11 @@ export const initSlots = (
 ) => {
   if (instance.vnode.shapeFlag & ShapeFlags.SLOTS_CHILDREN) {
     const type = (children as RawSlots)._
+    // Todo 由RawSlots类型的声明可知，_属性与编译器有关，暂不研究
     if (type) {
       instance.slots = children as InternalSlots
       // make compiler marker non-enumerable
+      // Todo 为什么要这么做？
       def(children as InternalSlots, '_', type)
     } else {
       normalizeObjectSlots(children as RawSlots, (instance.slots = {}))

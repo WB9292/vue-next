@@ -113,12 +113,13 @@ export type NormalizedPropsOptions = [NormalizedProps, string[]] | []
 
 export function initProps(
   instance: ComponentInternalInstance,
-  rawProps: Data | null,
+  rawProps: Data | null, // rawProps中保存着标签上解析的所有特性，包括事件特性
   isStateful: number, // result of bitwise flag comparison
   isSSR = false
 ) {
-  // 就像2.x一样，外部传入的rawProps可能是props或者attrs
+  // 组件选项的props中声明的prop
   const props: Data = {}
+  // 没有在组件选项的props中声明的特性会放入attrs中，这个功能与Vue2.x类似
   const attrs: Data = {}
   def(attrs, InternalObjectKey, 1)
   setFullProps(instance, rawProps, props, attrs)
@@ -246,9 +247,9 @@ export function updateProps(
 }
 
 /**
- * Todo 感觉这个方法是将rawProps转换为相应的props或者attrs
+ * 将rawProps中的属性分配给props或者attrs，处理逻辑与Vue2.x类似
  * @param instance
- * @param rawProps
+ * @param rawProps 标签上的特性（或者通过直接创建的方式）生成的props对象
  * @param props
  * @param attrs
  */
@@ -258,6 +259,8 @@ function setFullProps(
   props: Data,
   attrs: Data
 ) {
+  // propsOptions在normalizePropsOptions()方法进行标准化，
+  // options为组件选项的props标准化后的结果
   const [options, needCastKeys] = instance.propsOptions
   if (rawProps) {
     for (const key in rawProps) {
@@ -269,9 +272,9 @@ function setFullProps(
       // prop option names are camelized during normalization, so to support
       // kebab -> camel conversion here we need to camelize the key.
       let camelKey
-      if (options && hasOwn(options, (camelKey = camelize(key)))) {
+      if (options && hasOwn(options, (camelKey = camelize(key)))) { // 如果在组件选项的props中声明，则放入props对象中
         props[camelKey] = value
-      } else if (!isEmitListener(instance.emitsOptions, key)) {
+      } else if (!isEmitListener(instance.emitsOptions, key)) { // 非组件选项的props中声明的选项，并且非emits对应的onclick或onClick形式的事件，则放入attrs对象中
         // Any non-declared (either as a prop or an emitted event) props are put
         // into a separate `attrs` object for spreading. Make sure to preserve
         // original key casing
@@ -281,6 +284,7 @@ function setFullProps(
   }
 
   if (needCastKeys) {
+    // Todo 猜测：由于props是响应式对象，需要从props中获取原始的props对象
     const rawCurrentProps = toRaw(props)
     for (let i = 0; i < needCastKeys.length; i++) {
       const key = needCastKeys[i]
@@ -295,6 +299,14 @@ function setFullProps(
   }
 }
 
+/**
+ * 如果value没有值，则获取默认值并设置
+ * @param options
+ * @param props
+ * @param key
+ * @param value
+ * @param instance
+ */
 function resolvePropValue(
   options: NormalizedProps,
   props: Data,
@@ -308,7 +320,9 @@ function resolvePropValue(
     // default values
     if (hasDefault && value === undefined) {
       const defaultValue = opt.default
+      // Todo 如果type是[Function, String]形式的怎么办？
       if (opt.type !== Function && isFunction(defaultValue)) {
+        // Todo 为什么要怎么做？
         setCurrentInstance(instance)
         value = defaultValue(props)
         setCurrentInstance(null)
@@ -336,6 +350,7 @@ export function normalizePropsOptions(
   appContext: AppContext,
   asMixin = false
 ): NormalizedPropsOptions {
+  // 如果已经解析过__props，则返回
   if (!appContext.deopt && comp.__props) {
     return comp.__props
   }
@@ -368,6 +383,7 @@ export function normalizePropsOptions(
     return (comp.__props = EMPTY_ARR)
   }
 
+  // ['hello', 'world']形式的props
   if (isArray(raw)) {
     for (let i = 0; i < raw.length; i++) {
       if (__DEV__ && !isString(raw[i])) {
@@ -386,16 +402,33 @@ export function normalizePropsOptions(
       const normalizedKey = camelize(key)
       if (validatePropName(normalizedKey)) {
         const opt = raw[key]
+        /**
+         * opt为数组和函数的情况是：
+         * {
+         *   name: [Boolean, Array],
+         *   age: Number
+         * }
+         */
         const prop: NormalizedProp = (normalized[normalizedKey] =
           isArray(opt) || isFunction(opt) ? { type: opt } : opt)
         if (prop) {
+          // prop.type中Boolean在其中的下标位置
           const booleanIndex = getTypeIndex(Boolean, prop.type)
+          // prop.type中String在其中的下标位置
           const stringIndex = getTypeIndex(String, prop.type)
+          // 是否是Boolean类型的prop
           prop[BooleanFlags.shouldCast] = booleanIndex > -1
+          /**
+           * <HelloWorld visible />
+           * 当是上面这种方式设置prop时，是否将其默认值设置为true
+           */
           prop[BooleanFlags.shouldCastTrue] =
+            // 如果是prop是String类型或者String在Boolean之后（[Boolean, String]），则上面的例子的visible的默认值为''，否则将visible设置为true
             stringIndex < 0 || booleanIndex < stringIndex
           // if the prop needs boolean casting or default value
+          // 如果prop需要Boolean类型或者有默认值
           if (booleanIndex > -1 || hasOwn(prop, 'default')) {
+            // needCastKeys是干嘛的？答：标识该prop存在默认值， 当组件标签上的prop未传入值时，需要使用默认值
             needCastKeys.push(normalizedKey)
           }
         }
@@ -426,6 +459,7 @@ function isSameType(a: Prop<any>, b: Prop<any>): boolean {
   return getType(a) === getType(b)
 }
 
+// 获取type在expectedTypes中的位置
 function getTypeIndex(
   type: Prop<any>,
   expectedTypes: PropType<any> | void | null | true

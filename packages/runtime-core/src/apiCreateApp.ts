@@ -207,9 +207,9 @@ export function createAppAPI<HostElement>(
             context.mixins.push(mixin)
             // global mixin with props/emits de-optimizes props/emits
             // normalization caching.
-            // Todo emits是干嘛的？
+            // emits是干嘛的？答：emits是Vue3的新特性，用于声明当前组件会触发的事件
             if (mixin.props || mixin.emits) {
-              // Todo deopt是干嘛的？
+              // deopt是干嘛的？答：当mixin对props或emits进行更新后，需要在创建组件内部实例时，重新对props和emits进行标准化
               context.deopt = true
             }
           } else if (__DEV__) {

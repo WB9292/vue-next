@@ -1,6 +1,7 @@
 export const enum ShapeFlags {
   ELEMENT = 1,
   FUNCTIONAL_COMPONENT = 1 << 1,
+  // Todo 有状态的组件应该是指对象形式的组件
   STATEFUL_COMPONENT = 1 << 2,
   // vnode的文本类型的子元素
   TEXT_CHILDREN = 1 << 3,
