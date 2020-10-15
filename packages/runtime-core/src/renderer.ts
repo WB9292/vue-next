@@ -473,13 +473,13 @@ function baseCreateRenderer(
 
     const { type, ref, shapeFlag } = n2
     switch (type) {
-      case Text:
+      case Text: // 纯文本，Todo 纯文本为什么不是静态的？猜测：应该是因为这里的纯文本是动态生成的，比如{{name}}，name='hello'。
         processText(n1, n2, container, anchor)
         break
-      case Comment:
+      case Comment: // 注释
         processCommentNode(n1, n2, container, anchor)
         break
-      case Static:
+      case Static: // 静态内容只会插入一次，之后的更新不会再处理（在生产环境下）
         if (n1 == null) {
           mountStaticNode(n2, container, anchor, isSVG)
         } else if (__DEV__) {

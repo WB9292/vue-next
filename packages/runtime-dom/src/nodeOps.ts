@@ -56,6 +56,7 @@ export const nodeOps: Omit<RendererOptions<Node, Element>, 'patchProp'> = {
   // As long as the user only uses trusted templates, this is safe.
   /**
    * 使用content的内容生成DOM元素，并以指定的anchor作为锚点依次插入parent中
+   * 静态节点是没有动态内容，无需运行时动态修改的节点，插入一次后，之后的更新不会再处理。
    * @param content
    * @param parent
    * @param anchor
