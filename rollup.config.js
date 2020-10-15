@@ -103,6 +103,7 @@ function createConfig(format, output, plugins = []) {
   // 是否是生产环境的构建
   const isProductionBuild =
     process.env.__DEV__ === 'false' || /\.prod\.js$/.test(output.file)
+  // esm：ECMAScript modules
   // Todo esm-bundler和esm-browser的区别是什么？
   const isBundlerESMBuild = /esm-bundler/.test(format)
   const isBrowserESMBuild = /esm-browser/.test(format)

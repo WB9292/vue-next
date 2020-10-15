@@ -198,11 +198,13 @@ export type InternalRenderFunction = {
 export interface ComponentInternalInstance {
   uid: number
   type: ConcreteComponent
+  // 父组件实例
   parent: ComponentInternalInstance | null
   root: ComponentInternalInstance
   appContext: AppContext
   /**
    * Vnode representing this component in its parent's vdom tree
+   * 代表当前组件实例在其父元素中的vnode对象
    */
   vnode: VNode
   /**
