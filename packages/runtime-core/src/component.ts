@@ -241,6 +241,8 @@ export interface ComponentInternalInstance {
   effects: ReactiveEffect[] | null
   /**
    * cache for proxy access type to avoid hasOwnProperty calls
+   * 当访问组件内部实例上的非实例属性（$data、$props等）时，会将结果缓存在该对象中，以提高性能，
+   * 具体可查看runtime-core/src/componentPublicInstance.ts中的PublicInstanceProxyHandlers.get中
    * @internal
    */
   accessCache: Data | null
@@ -294,6 +296,7 @@ export interface ComponentInternalInstance {
 
   // state
   data: Data
+  // 对于有状态的组件内部实例来说，是从父组件传入的props，并且是添加数据响应系统之后的响应对象
   props: Data
   attrs: Data
   slots: InternalSlots
@@ -568,10 +571,12 @@ function setupStatefulComponent(
   // 2. call setup()
   const { setup } = Component
   if (setup) {
+    // 如果setup.length > 1表示函数有两个或以上的参数，则需要创建setup的上下文对象
     const setupContext = (instance.setupContext =
       setup.length > 1 ? createSetupContext(instance) : null)
 
     currentInstance = instance
+    // Todo 不知道pauseTracking和resetTracking的作用是什么
     pauseTracking()
     const setupResult = callWithErrorHandling(
       setup,
@@ -611,6 +616,7 @@ export function handleSetupResult(
   setupResult: unknown,
   isSSR: boolean
 ) {
+  // setup()函数可以直接返回一个函数，从而替换原有的渲染函数
   if (isFunction(setupResult)) {
     // setup returned an inline render function
     instance.render = setupResult as InternalRenderFunction
@@ -626,6 +632,7 @@ export function handleSetupResult(
     if (__DEV__ || __FEATURE_PROD_DEVTOOLS__) {
       instance.devtoolsRawSetupState = setupResult
     }
+    // Todo 为setup()的结果添加数据响应
     instance.setupState = proxyRefs(setupResult)
     if (__DEV__) {
       exposeSetupStateOnRenderContext(instance)

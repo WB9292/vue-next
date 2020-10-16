@@ -256,7 +256,9 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
     // access on a plain object, so we use an accessCache object (with null
     // prototype) to memoize what access type a key corresponds to.
     let normalizedProps
+    // 访问非实例属性
     if (key[0] !== '$') {
+      // 利用accessCache缓存键的类型，提高性能
       const n = accessCache![key]
       if (n !== undefined) {
         switch (n) {
@@ -292,6 +294,7 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
       }
     }
 
+    // 访问实例属性的访问器
     const publicGetter = publicPropertiesMap[key]
     let cssModule, globalProperties
     // public $xxx properties
@@ -307,7 +310,7 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
       (cssModule = cssModule[key])
     ) {
       return cssModule
-    } else if (ctx !== EMPTY_OBJ && hasOwn(ctx, key)) {
+    } else if (ctx !== EMPTY_OBJ && hasOwn(ctx, key)) { // Todo 待研究
       // user may set custom properties to `this` that start with `$`
       accessCache![key] = AccessTypes.CONTEXT
       return ctx[key]

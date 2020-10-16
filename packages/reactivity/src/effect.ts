@@ -138,6 +138,7 @@ export function resetTracking() {
   shouldTrack = last === undefined ? true : last
 }
 
+// Todo 这个是做什么的？
 export function track(target: object, type: TrackOpTypes, key: unknown) {
   if (!shouldTrack || activeEffect === undefined) {
     return
