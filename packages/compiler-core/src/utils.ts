@@ -100,15 +100,26 @@ export function advancePositionWithClone(
 
 // advance by mutation without cloning (for performance reasons), since this
 // gets called a lot in the parser
+/**
+ * 该方法用于更新pos的位置信息
+ * @param pos
+ * @param source
+ * @param numberOfCharacters 前进的字符个数
+ */
 export function advancePositionWithMutation(
   pos: Position,
   source: string,
   numberOfCharacters: number = source.length
 ): Position {
+  // 前进时，有多少换行
   let linesCount = 0
+  // lastNewLinePos表示最后一个换行符\n之后剩余的字符数
+  // 以"a\nbc"为例，要跳过这四个字符，当source.charCodeAt(i) === 10成立时，i = 1，
+  // 此时lastNewLinePos = 1，最终pos.column = numberOfCharacters - lastNewLinePos = 3，
+  // 也就是当前行待处理字符的偏移量，注意，line和column都是1开始计数，而不是0
   let lastNewLinePos = -1
   for (let i = 0; i < numberOfCharacters; i++) {
-    if (source.charCodeAt(i) === 10 /* newline char code */) {
+    if (source.charCodeAt(i) === 10 /* newline char code */) { // '\n'.charCodeAt(0)是10
       linesCount++
       lastNewLinePos = i
     }

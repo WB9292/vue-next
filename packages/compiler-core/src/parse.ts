@@ -54,6 +54,7 @@ export const defaultParserOptions: MergedParserOptions = {
   comments: false
 }
 
+// Todo 文本模式是干嘛的？
 export const enum TextModes {
   //          | Elements | Entities | End sign              | Inside of
   DATA, //    | ✔        | ✔        | End tags of ancestors |
@@ -63,12 +64,24 @@ export const enum TextModes {
   ATTRIBUTE_VALUE
 }
 
+/**
+ * 以"<div>\nhello</div>"为例，解释这些字段的含义：
+ * 一开始解析时，originalSource和source都是"<div>\nhello</div>"，offset为0，指向待编译的第一个字符，line为1，column为1，
+ * 假设接下来"<div>\n"处理完成，则originalSource保持不变，source变为"hello</div>"，offset变为6，指向"h"字符的位置，注意"\n"是换行符，
+ * line为2，因为换行了，而column仍然为1，也就是说，column指向当前正在处理的那一行的偏移量
+ */
 export interface ParserContext {
+  // 将默认编译器选项对象defaultParserOptions与外部传入的选项对象进行合并后的选项对象
   options: MergedParserOptions
+  // 原始待编译字符串
   readonly originalSource: string
+  // 剩余待编译的字符串，在编译过程中会将处理完成的字符删除，只保留未处理的字符
   source: string
+  // 当前正在处理的字符相对于原始字符串originalSource的偏移量，从0开始计数
   offset: number
+  // 当前处理的相对于原始待编译字符的行数，以1开始计数
   line: number
+  // line所指向的行的偏移量，以1开始计数
   column: number
   inPre: boolean // HTML <pre> tag, preserve whitespaces
   inVPre: boolean // v-pre, do not process directives and interpolations
@@ -112,6 +125,7 @@ function parseChildren(
   mode: TextModes,
   ancestors: ElementNode[]
 ): TemplateChildNode[] {
+  // 获取ancestors中的最后一个元素，Todo  parent是什么？
   const parent = last(ancestors)
   const ns = parent ? parent.ns : Namespaces.HTML
   const nodes: TemplateChildNode[] = []
@@ -122,6 +136,7 @@ function parseChildren(
     let node: TemplateChildNode | TemplateChildNode[] | undefined = undefined
 
     if (mode === TextModes.DATA || mode === TextModes.RCDATA) {
+      // delimiters默认是[`{{`, `}}`]，表示文本插值
       if (!context.inVPre && startsWith(s, context.options.delimiters[0])) {
         // '{{'
         node = parseInterpolation(context, mode)
@@ -756,27 +771,40 @@ function parseInterpolation(
   const [open, close] = context.options.delimiters
   __TEST__ && assert(startsWith(context.source, open))
 
+  // 最近的关闭分隔符在context.source中的开始位置
   const closeIndex = context.source.indexOf(close, open.length)
   if (closeIndex === -1) {
     emitError(context, ErrorCodes.X_MISSING_INTERPOLATION_END)
     return undefined
   }
 
+  // 文本插值的开始分隔符的位置信息
   const start = getCursor(context)
   advanceBy(context, open.length)
+  // 文本插值的内容的开始位置，比如"{{hello}}"，指向"h"的位置
   const innerStart = getCursor(context)
+  // 文本插值的内容的结束位置，默认指向开始位置
   const innerEnd = getCursor(context)
+  // 文本插值的内容的长度，比如"{{hello}}"，为5，也就是"hello"的长度
   const rawContentLength = closeIndex - open.length
+  // 文本插值的内容
   const rawContent = context.source.slice(0, rawContentLength)
+  // 获取rawContent转义后的内容（如果其内部有html转义字符），并更新context中的位置，指向文本插值的关闭分隔符的开始位置
   const preTrimContent = parseTextData(context, rawContentLength, mode)
   const content = preTrimContent.trim()
   const startOffset = preTrimContent.indexOf(content)
-  if (startOffset > 0) {
+  if (startOffset > 0) { // startOffset > 0成立时，说明preTrimContent字符串的开头有空白字符
+    // 更新innerStart，跳过开头空白字符的位置
+    // Todo 为什么要以rawContent为基础来更新innerStart而不以preTrimContent，毕竟startOffset是相对于preTrimContent而获取的
     advancePositionWithMutation(innerStart, rawContent, startOffset)
   }
+  // preTrimContent.length - content.length - startOffset表示preTrimContent字符串中结尾的空白字符的长度
+  // endOffset表示rawContent中最后一个非空字符的偏移量
   const endOffset =
     rawContentLength - (preTrimContent.length - content.length - startOffset)
+  // 更新innerEnd，指向rawContent的最后结尾非空字符的位置
   advancePositionWithMutation(innerEnd, rawContent, endOffset)
+  // 更新编译器上下文对象中的位置，跳过关闭分隔符
   advanceBy(context, close.length)
 
   return {
@@ -787,8 +815,10 @@ function parseInterpolation(
       // Set `isConstant` to false by default and will decide in transformExpression
       isConstant: false,
       content,
+      // 文本插值的内容在原始待编译字符串的位置信息
       loc: getSelection(context, innerStart, innerEnd)
     },
+    // 包含开始和结束分隔符的整个文本插值在原始待编译字符串的位置信息
     loc: getSelection(context, start)
   }
 }
@@ -835,11 +865,12 @@ function parseTextData(
   if (
     mode === TextModes.RAWTEXT ||
     mode === TextModes.CDATA ||
-    rawText.indexOf('&') === -1
+    rawText.indexOf('&') === -1 // Todo 猜测，这里应该是处理html转义，比如"&#60;" --> "<"，"&#62;" --> ">"
   ) {
     return rawText
   } else {
     // DATA or RCDATA containing "&"". Entity decoding required.
+    // 将rawText中可能存在的转义字符转换为其对应的真正的字符，比如"&#60;" --> "<"，"&#62;" --> ">"
     return context.options.decodeEntities(
       rawText,
       mode === TextModes.ATTRIBUTE_VALUE
@@ -873,10 +904,16 @@ function startsWith(source: string, searchString: string): boolean {
   return source.startsWith(searchString)
 }
 
+/**
+ * 解析字符串时，前进numberOfCharacters数目的字符，主要是更新上下文对象中的offset，line，column和source属性
+ * @param context
+ * @param numberOfCharacters
+ */
 function advanceBy(context: ParserContext, numberOfCharacters: number): void {
   const { source } = context
   __TEST__ && assert(numberOfCharacters <= source.length)
   advancePositionWithMutation(context, source, numberOfCharacters)
+  // 更新source属性
   context.source = source.slice(numberOfCharacters)
 }
 
@@ -918,6 +955,7 @@ function emitError(
   )
 }
 
+// Todo 要具体研究代码，应该是用于判断context中的源码是否是以结束标签开始
 function isEnd(
   context: ParserContext,
   mode: TextModes,
@@ -927,6 +965,7 @@ function isEnd(
 
   switch (mode) {
     case TextModes.DATA:
+      // 是否以结束标签开始
       if (startsWith(s, '</')) {
         //TODO: probably bad performance
         for (let i = ancestors.length - 1; i >= 0; --i) {

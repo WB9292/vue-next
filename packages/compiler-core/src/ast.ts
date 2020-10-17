@@ -70,6 +70,7 @@ export interface Node {
 
 // The node's range. The `start` is inclusive and `end` is exclusive.
 // [start, end)
+// 在源码中的位置信息
 export interface SourceLocation {
   start: Position
   end: Position

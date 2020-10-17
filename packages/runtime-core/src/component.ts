@@ -310,6 +310,7 @@ export interface ComponentInternalInstance {
 
   /**
    * setup related
+   * 当setup()函数返回的结果为对象时，该属性用于存储该结果添加数据响应之后的结果对象
    * @internal
    */
   setupState: Data
@@ -693,6 +694,7 @@ function finishComponentSetup(
     // for runtime-compiled render functions using `with` blocks, the render
     // proxy used needs a different `has` handler which is more performant and
     // also only allows a whitelist of globals to fallthrough.
+    // Todo 留待之后研究
     if (instance.render._rc) {
       instance.withProxy = new Proxy(
         instance.ctx,

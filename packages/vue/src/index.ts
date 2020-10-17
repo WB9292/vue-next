@@ -73,7 +73,8 @@ function compileToFunction(
   // In the global build we know `Vue` is available globally so we can avoid
   // the wildcard object.
   const render = (__GLOBAL__
-    ? new Function(code)()
+    ? new Function(code)() // 这里是直接运行代码
+    // 这里是运行代码时，将runtime-dom模块中导出的功能作为参数传入代码中，Todo 所以runtime-dom相当于Vue对象？
     : new Function('Vue', code)(runtimeDom)) as RenderFunction
 
   // mark the function as runtime compiled

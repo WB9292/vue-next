@@ -4,6 +4,7 @@ import namedCharacterReferences from './namedChars.json'
 // lazy compute this to make this file tree-shakable for browser
 let maxCRNameLength: number
 
+// Todo 有精力可以研究一下
 export const decodeHtml: ParserOptions['decodeEntities'] = (
   rawText,
   asAttr

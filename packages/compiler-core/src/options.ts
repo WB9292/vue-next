@@ -41,11 +41,13 @@ export interface ParserOptions {
     parent: ElementNode | undefined
   ) => TextModes
   /**
-   * @default ['{{', '}}']
+   * @default ['{{', '}}'] 表示模板字符串中的文本插值的分隔符
    */
   delimiters?: [string, string]
   /**
    * Only needed for DOM compilers
+   * 个人理解：依据compiler-dom/src/decodeHtmlBrowser.ts中的源码，可以猜测decodeEntities的作用是对html中的一些字符进行转义，转换为其对应真正的字符，
+   * 比如，原始html转义字符为"&#60;"，转换为"<"
    */
   decodeEntities?: (rawText: string, asAttr: boolean) => string
   onError?: (error: CompilerError) => void
