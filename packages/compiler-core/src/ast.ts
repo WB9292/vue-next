@@ -70,10 +70,13 @@ export interface Node {
 
 // The node's range. The `start` is inclusive and `end` is exclusive.
 // [start, end)
-// 在源码中的位置信息
+// 在原始待编译字符串中的位置信息
 export interface SourceLocation {
+  // 开始位置
   start: Position
+  // 结束位置
   end: Position
+  // start到end之间的内容：(start, end]，包含start指向位置的内容，不包含end指向位置的内容
   source: string
 }
 

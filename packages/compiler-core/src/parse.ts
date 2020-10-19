@@ -144,7 +144,7 @@ function parseChildren(
         // https://html.spec.whatwg.org/multipage/parsing.html#tag-open-state
         if (s.length === 1) {
           emitError(context, ErrorCodes.EOF_BEFORE_TAG_NAME, 1)
-        } else if (s[1] === '!') {
+        } else if (s[1] === '!') { // Todo 这个分支的代码暂不研究
           // https://html.spec.whatwg.org/multipage/parsing.html#markup-declaration-open-state
           if (startsWith(s, '<!--')) {
             node = parseComment(context)
@@ -381,7 +381,9 @@ function parseElement(
   // Start tag.
   const wasInPre = context.inPre
   const wasInVPre = context.inVPre
+  // 最近的祖先元素，也就是直接父元素
   const parent = last(ancestors)
+
   const element = parseTag(context, TagType.Start, parent)
   const isPreBoundary = context.inPre && !wasInPre
   const isVPreBoundary = context.inVPre && !wasInVPre
@@ -446,12 +448,18 @@ function parseTag(
     )
 
   // Tag open.
+  // 标签的开始位置
   const start = getCursor(context)
+  // 匹配标签名，可以用于匹配开始标签或结束标签，比如：
+  // '<div class="test"></div>'的结果为['<div', 'div']
   const match = /^<\/?([a-z][^\t\r\n\f />]*)/i.exec(context.source)!
+  // 标签名
   const tag = match[1]
+  // getNamespace方法在compiler-dom/src/parserOptions.ts中
   const ns = context.options.getNamespace(tag, parent)
 
   advanceBy(context, match[0].length)
+  // 跳过开头的空白符
   advanceSpaces(context)
 
   // save current state in case we need to re-parse attributes with v-pre
@@ -553,6 +561,7 @@ function parseAttributes(
       advanceSpaces(context)
       continue
     }
+    // 结束标签不能有特性
     if (type === TagType.End) {
       emitError(context, ErrorCodes.END_TAG_WITH_ATTRIBUTES)
     }
@@ -570,6 +579,11 @@ function parseAttributes(
   return props
 }
 
+/**
+ * 解析单个特性
+ * @param context
+ * @param nameSet
+ */
 function parseAttribute(
   context: ParserContext,
   nameSet: Set<string>
@@ -578,7 +592,9 @@ function parseAttribute(
 
   // Name.
   const start = getCursor(context)
+  // 解析特性名
   const match = /^[^\t\r\n\f />][^\t\r\n\f />=]*/.exec(context.source)!
+  // 特性名
   const name = match[0]
 
   if (nameSet.has(name)) {
@@ -589,7 +605,9 @@ function parseAttribute(
   if (name[0] === '=') {
     emitError(context, ErrorCodes.UNEXPECTED_EQUALS_SIGN_BEFORE_ATTRIBUTE_NAME)
   }
+
   {
+    // 特性名中不能存在"'<
     const pattern = /["'<]/g
     let m: RegExpExecArray | null
     while ((m = pattern.exec(name))) {
@@ -612,29 +630,55 @@ function parseAttribute(
       }
     | undefined = undefined
 
+  // source是否以等号开始（等号之前可能存在空白符）
   if (/^[\t\r\n\f ]*=/.test(context.source)) {
+    // 跳过空白符
     advanceSpaces(context)
+    // 跳过等号
     advanceBy(context, 1)
+    // 跳过等号之后，特性值之前的空白符
     advanceSpaces(context)
+    // 特性值
     value = parseAttributeValue(context)
     if (!value) {
       emitError(context, ErrorCodes.MISSING_ATTRIBUTE_VALUE)
     }
   }
+  // 当前整个特性的位置信息，比如：'<div name="test" class="go"></div>'中，当解析name特性时，loc指向的是整个name="test"的位置信息
   const loc = getSelection(context, start)
 
-  if (!context.inVPre && /^(v-|:|@|#)/.test(name)) {
+  // #号应该是指具名插槽的缩写：https://cn.vuejs.org/v2/guide/components-slots.html#%E5%85%B7%E5%90%8D%E6%8F%92%E6%A7%BD%E7%9A%84%E7%BC%A9%E5%86%99
+  if (!context.inVPre && /^(v-|:|@|#)/.test(name)) { // 处理指令的特性名
+    // 第一个分组([a-z0-9-]+)：匹配指令名，由正则可知，指令名只能包含小写字母或者数字
+    // 第二个分组(\[[^\]]+\]|[^\.]+)：
+    /**
+     * 分为两部分讨论：
+     * 1）\[[^\]]+\]应该是匹配vue的动态参数，文档：https://cn.vuejs.org/v2/guide/syntax.html#%E5%8A%A8%E6%80%81%E5%8F%82%E6%95%B0
+     * 2）[^\.]+：匹配非.
+     * 综上所述：匹配指令参数
+     */
+    // 第三个分组(.+)：匹配修饰符
+    /**
+     * 例子：
+     * 1）name='v-hello:go.one.two'
+     * ["v-hello:go.one.two", "hello", "go", ".one.two"]
+     * 2）name='v-hello:[go].one.two'
+     * ["v-hello:[go].one.two", "hello", "[go]", ".one.two"]
+     */
+    // 具体看一下vue的自定义指令应该就可以明白了：https://cn.vuejs.org/v2/guide/custom-directive.html
     const match = /(?:^v-([a-z0-9-]+))?(?:(?::|^@|^#)(\[[^\]]+\]|[^\.]+))?(.+)?$/i.exec(
       name
     )!
 
+    // 指令名
     const dirName =
       match[1] ||
       (startsWith(name, ':') ? 'bind' : startsWith(name, '@') ? 'on' : 'slot')
 
     let arg: ExpressionNode | undefined
 
-    if (match[2]) {
+    if (match[2]) { // 处理指令参数
+      // 是否是v-slot
       const isSlot = dirName === 'slot'
       const startOffset = name.indexOf(match[2])
       const loc = getSelection(
@@ -718,9 +762,9 @@ function parseAttributeValue(
   context: ParserContext
 ):
   | {
-      content: string
-      isQuoted: boolean
-      loc: SourceLocation
+      content: string // 特性值的内容
+      isQuoted: boolean // 特性值是否使用引号包裹
+      loc: SourceLocation // 特性值的文本的位置信息
     }
   | undefined {
   const start = getCursor(context)
@@ -730,10 +774,11 @@ function parseAttributeValue(
   const isQuoted = quote === `"` || quote === `'`
   if (isQuoted) {
     // Quoted value.
+    // 跳过开头的引号
     advanceBy(context, 1)
 
     const endIndex = context.source.indexOf(quote)
-    if (endIndex === -1) {
+    if (endIndex === -1) { // Todo 这应该是一个不正常的情况，无需细究
       content = parseTextData(
         context,
         context.source.length,
@@ -741,6 +786,7 @@ function parseAttributeValue(
       )
     } else {
       content = parseTextData(context, endIndex, TextModes.ATTRIBUTE_VALUE)
+      // 跳过结尾的引号
       advanceBy(context, 1)
     }
   } else {
@@ -917,6 +963,7 @@ function advanceBy(context: ParserContext, numberOfCharacters: number): void {
   context.source = source.slice(numberOfCharacters)
 }
 
+// 跳过当前context.source开头的空白符
 function advanceSpaces(context: ParserContext): void {
   const match = /^[\t\r\n\f ]+/.exec(context.source)
   if (match) {
