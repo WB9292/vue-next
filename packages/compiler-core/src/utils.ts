@@ -86,6 +86,12 @@ export function getInnerRange(
   return newLoc
 }
 
+/**
+ * 根据pos创建一个新的位置对象，根据source和numberOfCharacters向前移动
+ * @param pos
+ * @param source
+ * @param numberOfCharacters
+ */
 export function advancePositionWithClone(
   pos: Position,
   source: string,

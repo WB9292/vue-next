@@ -83,7 +83,9 @@ export interface ParserContext {
   line: number
   // line所指向的行的偏移量，以1开始计数
   column: number
+  // 是否是<pre>标签
   inPre: boolean // HTML <pre> tag, preserve whitespaces
+  // 是否是v-pre指令
   inVPre: boolean // v-pre, do not process directives and interpolations
 }
 
@@ -170,7 +172,7 @@ function parseChildren(
             emitError(context, ErrorCodes.MISSING_END_TAG_NAME, 2)
             advanceBy(context, 3)
             continue
-          } else if (/[a-z]/i.test(s[2])) {
+          } else if (/[a-z]/i.test(s[2])) { // Todo 这不应该是结束标签吗？为什么要抛出错误？猜测：在parseElement()方法中，已经解析过结束标签了，所以不会再有结束标签存在，详情可查看parseElement()方法
             emitError(context, ErrorCodes.X_INVALID_END_TAG)
             parseTag(context, TagType.End, parent)
             continue
@@ -182,7 +184,7 @@ function parseChildren(
             )
             node = parseBogusComment(context)
           }
-        } else if (/[a-z]/i.test(s[1])) {
+        } else if (/[a-z]/i.test(s[1])) { // 开始标签
           node = parseElement(context, ancestors)
         } else if (s[1] === '?') {
           emitError(
@@ -216,13 +218,16 @@ function parseChildren(
     for (let i = 0; i < nodes.length; i++) {
       const node = nodes[i]
       if (!context.inPre && node.type === NodeTypes.TEXT) {
+        // [^\t\r\n\f ]的意思是：在node.content中，只要有一个字符不是'\t\r\n\f '，就返回true
+        // 所以整个条件的含义是，node.content中只有'\t\r\n\f '这种类型的字符
+        // Todo 这种类型的字符是在哪里收集的？
         if (!/[^\t\r\n\f ]/.test(node.content)) {
           const prev = nodes[i - 1]
           const next = nodes[i + 1]
           // If:
-          // - the whitespace is the first or last node, or:
-          // - the whitespace is adjacent to a comment, or:
-          // - the whitespace is between two elements AND contains newline
+          // - the whitespace is the first or last node, or: 如果空格是第一个或最后一个节点
+          // - the whitespace is adjacent to a comment, or: 如果空格与注释相邻
+          // - the whitespace is between two elements AND contains newline 在两个元素之间的空白符，并且有换行符。 // Todo 这里的处理有点问题，如果是两个内联元素，并且换行，则两个元素之间的不会有空白，但是其实应该是有空白的，有些地方确实不太好处理
           // Then the whitespace is ignored.
           if (
             !prev ||
@@ -241,6 +246,7 @@ function parseChildren(
             node.content = ' '
           }
         } else {
+          // 将文本中的多个连续空白符替换为单个空格
           node.content = node.content.replace(/[\t\r\n\f ]+/g, ' ')
         }
       }
@@ -385,15 +391,27 @@ function parseElement(
   const parent = last(ancestors)
 
   const element = parseTag(context, TagType.Start, parent)
+  /**
+   * 是否是pre标签的边界，pre标签中可能嵌套pre标签，比如：
+   * <pre>
+   *   <div>
+   *      <pre>hello</pre>
+   *   </div>
+   * </pre>
+   * 这里的isPreBoundary指的是最外层的pre标签
+   */
   const isPreBoundary = context.inPre && !wasInPre
+  // 这个变量的含义与isPreBoundary类似，只是针对v-pre指令
   const isVPreBoundary = context.inVPre && !wasInVPre
 
+  // 如果是自关闭（比如<img />）或者可以为空的标签，则直接返回元素
   if (element.isSelfClosing || context.options.isVoidTag(element.tag)) {
     return element
   }
 
   // Children.
   ancestors.push(element)
+  // Todo 文本模式的作用是什么？
   const mode = context.options.getTextMode(element, parent)
   const children = parseChildren(context, mode, ancestors)
   ancestors.pop()
@@ -402,6 +420,7 @@ function parseElement(
 
   // End tag.
   if (startsWithEndTagOpen(context.source, element.tag)) {
+    // 解析结束标签时，并没有保存parseTag的结果，而是直接丢弃，这里只是为了校验结束标签是否有错误，比如是否有属性等
     parseTag(context, TagType.End, parent)
   } else {
     emitError(context, ErrorCodes.X_MISSING_END_TAG, 0, element.loc.start)
@@ -416,9 +435,11 @@ function parseElement(
   element.loc = getSelection(context, element.loc.start)
 
   if (isPreBoundary) {
+    // 已出了<pre>标签的范围
     context.inPre = false
   }
   if (isVPreBoundary) {
+    // 已出了v-pre指令的范围
     context.inVPre = false
   }
   return element
@@ -452,6 +473,7 @@ function parseTag(
   const start = getCursor(context)
   // 匹配标签名，可以用于匹配开始标签或结束标签，比如：
   // '<div class="test"></div>'的结果为['<div', 'div']
+  // 不仅可以匹配开始标签，还可以匹配结束标签
   const match = /^<\/?([a-z][^\t\r\n\f />]*)/i.exec(context.source)!
   // 标签名
   const tag = match[1]
@@ -470,11 +492,13 @@ function parseTag(
   let props = parseAttributes(context, type)
 
   // check <pre> tag
+  // <pre>与v-pre的处理方式不同，v-pre会完全保留对应标签、属性及其内部的形式
   if (context.options.isPreTag(tag)) {
     context.inPre = true
   }
 
   // check v-pre
+  // v-pre指令会完全保留对应标签、属性及其内部的形式
   if (
     !context.inVPre &&
     props.some(p => p.type === NodeTypes.DIRECTIVE && p.name === 'pre')
@@ -502,10 +526,13 @@ function parseTag(
   let tagType = ElementTypes.ELEMENT
   const options = context.options
   if (!context.inVPre && !options.isCustomElement(tag)) {
+    // 是否有:is指令
     const hasVIs = props.some(
       p => p.type === NodeTypes.DIRECTIVE && p.name === 'is'
     )
     if (options.isNativeTag && !hasVIs) {
+      // 默认情况下，isNativeTag方法判断是否是原生html标签，compiler-dom/src/parserOptions.ts文件下
+      // 所，只要不是原生html标签，就算作组件
       if (!options.isNativeTag(tag)) tagType = ElementTypes.COMPONENT
     } else if (
       hasVIs ||
@@ -523,7 +550,7 @@ function parseTag(
       tag === 'template' &&
       props.some(p => {
         return (
-          p.type === NodeTypes.DIRECTIVE && isSpecialTemplateDirective(p.name)
+          p.type === NodeTypes.DIRECTIVE && isSpecialTemplateDirective(p.name) // 如果template标签上没有v-if，v-else等指令，则template就是html原生标签
         )
       })
     ) {
@@ -532,11 +559,16 @@ function parseTag(
   }
 
   return {
+    // 节点的类型
     type: NodeTypes.ELEMENT,
     ns,
+    // 标签名
     tag,
+    // 元素的类型
     tagType,
+    // 标签上的特性
     props,
+    // 是否是自关闭标签，比如 <br />
     isSelfClosing,
     children: [],
     loc: getSelection(context, start),
@@ -544,6 +576,7 @@ function parseTag(
   }
 }
 
+// 解析标签上的特性时，context.source字符串开头的空白符已删除
 function parseAttributes(
   context: ParserContext,
   type: TagType
@@ -581,8 +614,10 @@ function parseAttributes(
 
 /**
  * 解析单个特性
+ * 如果返回的是AttributeNode类型的值，则是纯粹的特性，v- : @等都是指令节点
  * @param context
  * @param nameSet
+ * Todo 这个方法还有很多没有理解的地方
  */
 function parseAttribute(
   context: ParserContext,
@@ -591,6 +626,7 @@ function parseAttribute(
   __TEST__ && assert(/^[^\t\r\n\f />]/.test(context.source))
 
   // Name.
+  // start是特性名的开始位置信息，
   const start = getCursor(context)
   // 解析特性名
   const match = /^[^\t\r\n\f />][^\t\r\n\f />=]*/.exec(context.source)!
@@ -648,6 +684,7 @@ function parseAttribute(
   const loc = getSelection(context, start)
 
   // #号应该是指具名插槽的缩写：https://cn.vuejs.org/v2/guide/components-slots.html#%E5%85%B7%E5%90%8D%E6%8F%92%E6%A7%BD%E7%9A%84%E7%BC%A9%E5%86%99
+  // context.inVPre为表示v-pre指令，v-pre指令保留内容
   if (!context.inVPre && /^(v-|:|@|#)/.test(name)) { // 处理指令的特性名
     // 第一个分组([a-z0-9-]+)：匹配指令名，由正则可知，指令名只能包含小写字母或者数字
     // 第二个分组(\[[^\]]+\]|[^\.]+)：
@@ -680,16 +717,21 @@ function parseAttribute(
     if (match[2]) { // 处理指令参数
       // 是否是v-slot
       const isSlot = dirName === 'slot'
+      // 指令参数的开始位置
       const startOffset = name.indexOf(match[2])
       const loc = getSelection(
         context,
+        // 将start前进startOffset步，也就是该函数返回的新位置对象相对于原始待编译字符串，其指向指令参数的开始位置
         getNewPosition(context, start, startOffset),
+        // 对于插槽，是前进到整个特性名的结束位置。对于其他指令，是前进到指令参数的结束位置
         getNewPosition(
           context,
           start,
+          // 插槽特殊处理的原因：个人理解的是，插槽没有匹配修饰符，所以#或v-slot:之后的所有内容都属于插槽
           startOffset + match[2].length + ((isSlot && match[3]) || '').length
         )
       )
+      // 指令参数
       let content = match[2]
       let isStatic = true
 
@@ -703,24 +745,29 @@ function parseAttribute(
           )
         }
 
+        // '[name]' --> 'name'
         content = content.substr(1, content.length - 2)
       } else if (isSlot) {
         // #1241 special case for v-slot: vuetify relies extensively on slot
         // names containing dots. v-slot doesn't have any modifiers and Vue 2.x
         // supports such usage so we are keeping it consistent with 2.x.
+        // 插槽不支持修饰符，直接作为指令参数的一部分
         content += match[3] || ''
       }
 
       arg = {
         type: NodeTypes.SIMPLE_EXPRESSION,
+        // 指令参数的内容
         content,
+        // false表示是动态指令参数
         isStatic,
         isConstant: isStatic,
         loc
       }
     }
 
-    if (value && value.isQuoted) {
+    // Todo 为什么要这么处理？
+    if (value && value.isQuoted) { // isQuoted表示值以单引号或双引号包裹
       const valueLoc = value.loc
       valueLoc.start.offset++
       valueLoc.start.column++
@@ -869,6 +916,7 @@ function parseInterpolation(
   }
 }
 
+// Todo 待研究
 function parseText(context: ParserContext, mode: TextModes): TextNode {
   __TEST__ && assert(context.source.length > 0)
 
@@ -929,6 +977,8 @@ function getCursor(context: ParserContext): Position {
   return { column, line, offset }
 }
 
+// Selection是选中的区域，由start和end指定的区域
+// Todo 这个区域把start和end都包含在内吗？还是不包含end？
 function getSelection(
   context: ParserContext,
   start: Position,
@@ -971,6 +1021,12 @@ function advanceSpaces(context: ParserContext): void {
   }
 }
 
+/**
+ * 该方法用于根据context.source属性，将start前进numberOfCharacters步
+ * @param context
+ * @param start
+ * @param numberOfCharacters
+ */
 function getNewPosition(
   context: ParserContext,
   start: Position,

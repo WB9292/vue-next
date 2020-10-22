@@ -56,10 +56,15 @@ export const enum NodeTypes {
   JS_RETURN_STATEMENT
 }
 
+// 将html标签元素分为四种类型
 export const enum ElementTypes {
+  // 普通html元素
   ELEMENT,
+  // 组件
   COMPONENT,
+  // 插槽
   SLOT,
+  // template元素，并且标签上有v-if、v-else等指令时
   TEMPLATE
 }
 
@@ -124,8 +129,11 @@ export type ElementNode =
 export interface BaseElementNode extends Node {
   type: NodeTypes.ELEMENT
   ns: Namespace
+  // 元素标签名
   tag: string
+  // 元素标签的类型
   tagType: ElementTypes
+  // 是否是自关闭标签
   isSelfClosing: boolean
   props: Array<AttributeNode | DirectiveNode>
   children: TemplateChildNode[]
@@ -181,11 +189,17 @@ export interface AttributeNode extends Node {
   value: TextNode | undefined
 }
 
+/**
+ * 以"v-test:name.one.two="go"为例
+ */
 export interface DirectiveNode extends Node {
   type: NodeTypes.DIRECTIVE
+  // 指令名，"name"
   name: string
+  // Todo exp和arg的区别是什么？
   exp: ExpressionNode | undefined
   arg: ExpressionNode | undefined
+  // 修饰符，["one", "two"]
   modifiers: string[]
   /**
    * optional property to cache the expression parse result for v-for
