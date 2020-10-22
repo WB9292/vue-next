@@ -69,6 +69,7 @@ export function baseCompile(
     }
   }
 
+  // 正常流程中，options.prefixIdentifiers为undefined
   const prefixIdentifiers =
     !__BROWSER__ && (options.prefixIdentifiers === true || isModuleMode)
   if (!prefixIdentifiers && options.cacheHandlers) {
