@@ -23,17 +23,26 @@ export const enum Namespaces {
 }
 
 export const enum NodeTypes {
+  // 一个组件元素的根节点
   ROOT,
+  // 元素节点
   ELEMENT,
+  // 纯文本节点
   TEXT,
+  // 注释节点
   COMMENT,
   SIMPLE_EXPRESSION,
+  // 插值操作符，{{}}
   INTERPOLATION,
+  // html标签上的普通特性，不是指令特性
   ATTRIBUTE,
+  // 指令特性
   DIRECTIVE,
   // containers
   COMPOUND_EXPRESSION,
+  // 存在v-if指令的节点
   IF,
+  // v-if、v-else-if、v-else对应的真实节点，详情可查看IfNode接口中的相关注释
   IF_BRANCH,
   FOR,
   TEXT_CALL,
@@ -64,11 +73,12 @@ export const enum ElementTypes {
   COMPONENT,
   // 插槽
   SLOT,
-  // template元素，并且标签上有v-if、v-else等指令时
+  // template元素，并且标签上有v-if,v-else,v-else-if,v-for,v-slot指令时
   TEMPLATE
 }
 
 export interface Node {
+  // 节点类型
   type: NodeTypes
   loc: SourceLocation
 }
@@ -81,7 +91,7 @@ export interface SourceLocation {
   start: Position
   // 结束位置
   end: Position
-  // start到end之间的内容：(start, end]，包含start指向位置的内容，不包含end指向位置的内容
+  // start到end之间的内容：[start, end)，包含start指向位置的内容，不包含end指向位置的内容
   source: string
 }
 
@@ -93,6 +103,7 @@ export interface Position {
 
 export type ParentNode = RootNode | ElementNode | IfBranchNode | ForNode
 
+// Todo 猜测：表达式节点是会动态计算的节点
 export type ExpressionNode = SimpleExpressionNode | CompoundExpressionNode
 
 export type TemplateChildNode =
@@ -135,7 +146,9 @@ export interface BaseElementNode extends Node {
   tagType: ElementTypes
   // 是否是自关闭标签
   isSelfClosing: boolean
+  // 标签上的所有特性
   props: Array<AttributeNode | DirectiveNode>
+  // 子元素数组
   children: TemplateChildNode[]
 }
 
@@ -194,9 +207,9 @@ export interface AttributeNode extends Node {
  */
 export interface DirectiveNode extends Node {
   type: NodeTypes.DIRECTIVE
-  // 指令名，"name"
+  // 指令名，"test"
   name: string
-  // Todo exp和arg的区别是什么？
+  // Todo exp和arg的区别是什么？猜测：exp保存的是上例中的go相关的内容，而arg保存的是上例中name相关的内容
   exp: ExpressionNode | undefined
   arg: ExpressionNode | undefined
   // 修饰符，["one", "two"]
@@ -253,13 +266,24 @@ export interface CompoundExpressionNode extends Node {
 
 export interface IfNode extends Node {
   type: NodeTypes.IF
+  /**
+   * 比如：
+   * <div v-if="num === 1">one</div>
+   * <div v-else-if="num === 2">two</div>
+   * <div v-else>others</div>
+   * 此时，上面的三个节点都会放入branches数组中，类型是if分支节点。
+   * 所以，可以认为IfNode节点是一个收集v-if、v-else-if、v-else所有关联分支的一个虚拟节点，
+   * branches数组中的节点才是真实的节点
+   */
   branches: IfBranchNode[]
   codegenNode?: IfConditionalExpression | CacheExpression // <div v-if v-once>
 }
 
 export interface IfBranchNode extends Node {
   type: NodeTypes.IF_BRANCH
+  // 对于v-if和v-else-if指令，该属性为DirectiveNode接口中的exp属性的值，对于v-else，为undefined
   condition: ExpressionNode | undefined // else
+  // 具体值，可查看compiler-core/src/transforms/vIf.ts --> createIfBranch()方法
   children: TemplateChildNode[]
   userKey?: AttributeNode | DirectiveNode
 }

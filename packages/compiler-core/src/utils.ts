@@ -148,6 +148,7 @@ export function assert(condition: boolean, msg?: string) {
   }
 }
 
+// 在元素节点node中查找name对应的指令节点
 export function findDir(
   node: ElementNode,
   name: string | RegExp,

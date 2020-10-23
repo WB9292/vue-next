@@ -78,6 +78,7 @@ export interface ImportItem {
 }
 
 export interface TransformContext extends Required<TransformOptions> {
+  // 组件的模板字符串的根节点
   root: RootNode
   helpers: Set<symbol>
   components: Set<string>
@@ -93,13 +94,18 @@ export interface TransformContext extends Required<TransformOptions> {
     vPre: number
     vOnce: number
   }
+  // currentNode的父节点
   parent: ParentNode | null
+  // currentNode在parent中的位置下标
   childIndex: number
+  // 当前正在处理的节点
   currentNode: RootNode | TemplateChildNode | null
   helper<T extends symbol>(name: T): T
   helperString(name: symbol): string
   replaceNode(node: TemplateChildNode): void
+  // 删除节点的方法，在该方法内部调用context.onNodeRemoved()方法
   removeNode(node?: TemplateChildNode): void
+  // 如果有节点被删除，需要调用该方法
   onNodeRemoved(): void
   addIdentifiers(exp: ExpressionNode | string): void
   removeIdentifiers(exp: ExpressionNode | string): void
@@ -145,6 +151,7 @@ export function createTransformContext(
 
     // state
     root,
+    // Todo 作用是什么？
     helpers: new Set(),
     components: new Set(),
     directives: new Set(),
@@ -171,6 +178,7 @@ export function createTransformContext(
     helperString(name) {
       return `_${helperNameMap[context.helper(name)]}`
     },
+    // 使用node替换父元素中对应的子节点以及当前正在处理的节点
     replaceNode(node) {
       /* istanbul ignore if */
       if (__DEV__) {
@@ -325,6 +333,7 @@ function createRootCodegen(root: RootNode, context: TransformContext) {
   }
 }
 
+// 遍历parent父元素节点的所有子节点，并进行转换
 export function traverseChildren(
   parent: ParentNode,
   context: TransformContext
@@ -335,6 +344,7 @@ export function traverseChildren(
   }
   for (; i < parent.children.length; i++) {
     const child = parent.children[i]
+    // Todo 什么情况下，child会是字符串？
     if (isString(child)) continue
     context.parent = parent
     context.childIndex = i
@@ -343,14 +353,17 @@ export function traverseChildren(
   }
 }
 
+// Todo 该方法作用的暂时性想法：用于将一种类型的节点转换为另一种类型的节点
 export function traverseNode(
   node: RootNode | TemplateChildNode,
   context: TransformContext
 ) {
   context.currentNode = node
   // apply transform plugins
+  // 在compiler-core/src/compile.ts --> getBaseTransformPreset()方法中返回
   const { nodeTransforms } = context
   const exitFns = []
+  // 使用所有nodeTransforms对node进行处理
   for (let i = 0; i < nodeTransforms.length; i++) {
     const onExit = nodeTransforms[i](node, context)
     if (onExit) {
@@ -377,7 +390,7 @@ export function traverseNode(
         context.helper(CREATE_COMMENT)
       }
       break
-    case NodeTypes.INTERPOLATION:
+    case NodeTypes.INTERPOLATION: // Todo 这个是干嘛的？插值操作符{{}}？
       // no need to traverse, but we need to inject toString helper
       if (!context.ssr) {
         context.helper(TO_DISPLAY_STRING)
@@ -385,7 +398,10 @@ export function traverseNode(
       break
 
     // for container types, further traverse downwards
+    // 这里处理的只是v-if指令的子元素，对于v-else-if和v-else来说，是在compiler-core/src/transforms/vIf.ts中处理的，可查看该文件中调用traverseNode()方法的相关代码
     case NodeTypes.IF:
+      // 正如在compiler-core/src/ast.ts --> IfNode接口中的注释，对于NodeTypes.IF类型的节点，
+      // 其对应的真正节点在branches数组中
       for (let i = 0; i < node.branches.length; i++) {
         traverseNode(node.branches[i], context)
       }
@@ -415,10 +431,44 @@ export function createStructuralDirectiveTransform(
     : (n: string) => name.test(n)
 
   return (node, context) => {
+    // 结构性指令只处理元素节点
     if (node.type === NodeTypes.ELEMENT) {
       const { props } = node
       // structural directive transforms are not concerned with slots
       // as they are handled separately in vSlot.ts
+      // 结构性指令转换器不关心插槽，他们在vSlot.ts中单独处理
+      // 当template元素上没有插槽指令（v-slot或#）时，template会作为html原生元素处理
+      /**
+       * 例子：
+       * Hello.vue：
+       * <div class="hello">
+       *   <slot></slot>
+       * </div>
+       *
+       * Test1.vue：
+       * <Hello>
+       *   <template #default>
+       *     <div>Hello</div>
+       *   </template>
+       * </Hello>
+       * 最终生成的dom结构为：
+       * <div class="hello">
+       *   <div>Hello</div>
+       * </div>
+       *
+       * Test2.vue：
+       * <Hello>
+       *   <template>
+       *     <div>Hello</div>
+       *   </template>
+       * </Hello>
+       * 最终生成的dom结构为：
+       * <div class="hello">
+       *   <template>
+       *     <div>Hello</div>
+       *   </template>
+       * </div>
+       */
       if (node.tagType === ElementTypes.TEMPLATE && props.some(isVSlot)) {
         return
       }
@@ -429,6 +479,8 @@ export function createStructuralDirectiveTransform(
           // structural directives are removed to avoid infinite recursion
           // also we remove them *before* applying so that it can further
           // traverse itself in case it moves the node around
+          // 删除结构性指令以避免无限递归，此外，我们在应用它们之前删除它们，它可以进一步
+          // 遍历自身，以防它移动节点。Todo 自己翻译的，自己都看不懂。。。
           props.splice(i, 1)
           i--
           const onExit = fn(node, prop, context)

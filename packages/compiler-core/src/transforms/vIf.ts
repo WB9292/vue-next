@@ -42,8 +42,8 @@ export const transformIf = createStructuralDirectiveTransform(
       // #1587: We need to dynamically increment the key based on the current
       // node's sibling nodes, since chained v-if/else branches are
       // rendered at the same depth
-      const siblings = context.parent!.children
-      let i = siblings.indexOf(ifNode)
+      const siblings = context.parent!.children // 由于调用了context.replaceNode()方法，已经将原节点替换为ifNode节点
+      let i = siblings.indexOf(ifNode) // ifNode的下标位置
       let key = 0
       while (i-- >= 0) {
         const sibling = siblings[i]
@@ -55,13 +55,15 @@ export const transformIf = createStructuralDirectiveTransform(
       // Exit callback. Complete the codegenNode when all children have been
       // transformed.
       return () => {
+        // Todo isRoot的作用是什么？猜测：这里的isRoot用于确定branch参数是v-if指令还是v-else-if/v-else指令，如果isRoot为true，则是v-if指令，如果为false，则是v-else-if/v-else指令
         if (isRoot) {
+          // Todo 猜测：codegenNode的作用是用于生成相应的编译字符串
           ifNode.codegenNode = createCodegenNodeForBranch(
             branch,
             key,
             context
           ) as IfConditionalExpression
-        } else {
+        } else { // Todo 这个分支的代码不知道是干嘛的
           // attach this branch's codegen node to the v-if root.
           const parentCondition = getParentCondition(ifNode.codegenNode!)
           parentCondition.alternate = createCodegenNodeForBranch(
@@ -89,7 +91,7 @@ export function processIf(
   if (
     dir.name !== 'else' &&
     (!dir.exp || !(dir.exp as SimpleExpressionNode).content.trim())
-  ) {
+  ) { // v-if和v-else-if必须有表达式
     const loc = dir.exp ? dir.exp.loc : node.loc
     context.onError(
       createCompilerError(ErrorCodes.X_V_IF_NO_EXPRESSION, dir.loc)
@@ -122,10 +124,15 @@ export function processIf(
     // locate the adjacent v-if
     const siblings = context.parent!.children
     const comments = []
+    // 当前节点在父元素中的位置
     let i = siblings.indexOf(node)
+    // 为什么要这么判断，这样的话i在while循环里可能会是-1或-2
+    // 答：注意while循环中最后的break，也就是说，如果v-else-if或v-else指令之前没有注释或者空白符，则只会循环一次
+    // 对于i-- >= -1的判断条件，如果node不在siblings中，则初始情况下，i就是-1，此时也会运行while循环（因为i--，先比较，后--，也就是第一步i >= -1，第二步i = i - 1），
+    // 然后，就可以报错
     while (i-- >= -1) {
       const sibling = siblings[i]
-      if (__DEV__ && sibling && sibling.type === NodeTypes.COMMENT) {
+      if (__DEV__ && sibling && sibling.type === NodeTypes.COMMENT) { // 注释
         context.removeNode(sibling)
         comments.unshift(sibling)
         continue
@@ -134,14 +141,16 @@ export function processIf(
       if (
         sibling &&
         sibling.type === NodeTypes.TEXT &&
+        // Todo 什么时候回出现为空的兄弟元素？
         !sibling.content.trim().length
-      ) {
+      ) { // 空白符
         context.removeNode(sibling)
         continue
       }
 
       if (sibling && sibling.type === NodeTypes.IF) {
         // move the node to the if node's branches
+        // 将存在v-else-if、v-else指令的节点删除，因为节点会放入IfNode中，详情可查看compiler-core/src/ast.ts --> IfNode接口中的注释
         context.removeNode()
         const branch = createIfBranch(node, dir)
         if (__DEV__ && comments.length) {
@@ -192,7 +201,9 @@ function createIfBranch(node: ElementNode, dir: DirectiveNode): IfBranchNode {
     condition: dir.name === 'else' ? undefined : dir.exp,
     children:
       node.tagType === ElementTypes.TEMPLATE && !findDir(node, 'for')
+        // 如果v-if、v-else-if、v-else指令在template标签上，并且没有v-for指令，则忽略template标签，直接使用其内部子元素
         ? node.children
+        // 否则，当前节点就是其子元素
         : [node],
     userKey: findProp(node, `key`)
   }

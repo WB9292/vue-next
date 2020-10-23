@@ -224,6 +224,7 @@ export function processFor(
   context.replaceNode(forNode)
 
   // bookkeeping
+  // Todo 作用是什么？
   scopes.vFor++
   if (!__BROWSER__ && context.prefixIdentifiers) {
     // scope management
@@ -246,16 +247,26 @@ export function processFor(
   }
 }
 
+// 例子：v-for="(option, index)  in options"
+// 第一个分组：([\s\S]*?)匹配："(option, index)"
+// 第二个分组：([\s\S]*)匹配："options"
 const forAliasRE = /([\s\S]*?)\s+(?:in|of)\s+([\s\S]*)/
 // This regex doesn't cover the case if key or index aliases have destructuring,
 // but those do not make sense in the first place, so this works in practice.
+// 例子：v-for="(value, name, index) in object"
+// 第一个分组：([^,\}\]]*)匹配：" name"
+// 第二个分组匹配：([^,\}\]]*)匹配：" index"
 const forIteratorRE = /,([^,\}\]]*)(?:,([^,\}\]]*))?$/
 const stripParensRE = /^\(|\)$/g
 
+// 例子：v-for="(value, name, index) in object"
 export interface ForParseResult {
   source: ExpressionNode
+  // 上例中"value"的相关信息
   value: ExpressionNode | undefined
+  // 上例中"name"的相关信息
   key: ExpressionNode | undefined
+  // 上例中"index"的相关信息
   index: ExpressionNode | undefined
 }
 
@@ -268,6 +279,9 @@ export function parseForExpression(
   const inMatch = exp.match(forAliasRE)
   if (!inMatch) return
 
+  // 例子：v-for="(option, index)  in options"
+  // LHS："(option, index)"
+  // RHS："options"
   const [, LHS, RHS] = inMatch
 
   const result: ForParseResult = {
@@ -290,18 +304,23 @@ export function parseForExpression(
     validateBrowserExpression(result.source as SimpleExpressionNode, context)
   }
 
+  // "(option, index)" --> "option, index"
   let valueContent = LHS.trim()
     .replace(stripParensRE, '')
     .trim()
   const trimmedOffset = LHS.indexOf(valueContent)
 
   const iteratorMatch = valueContent.match(forIteratorRE)
+  // 例子：v-for="(value, name, index) in object"
   if (iteratorMatch) {
+    // 上例中的"value"
     valueContent = valueContent.replace(forIteratorRE, '').trim()
 
+    // 上例中的"name"
     const keyContent = iteratorMatch[1].trim()
     let keyOffset: number | undefined
     if (keyContent) {
+      // keyOffset在整个exp中下标的位置
       keyOffset = exp.indexOf(keyContent, trimmedOffset + valueContent.length)
       result.key = createAliasExpression(loc, keyContent, keyOffset)
       if (!__BROWSER__ && context.prefixIdentifiers) {
@@ -317,6 +336,7 @@ export function parseForExpression(
     }
 
     if (iteratorMatch[2]) {
+      // 上例中的"index"
       const indexContent = iteratorMatch[2].trim()
 
       if (indexContent) {

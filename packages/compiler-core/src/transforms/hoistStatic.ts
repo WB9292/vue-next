@@ -14,6 +14,7 @@ import { TransformContext } from '../transform'
 import { PatchFlags, isString, isSymbol } from '@vue/shared'
 import { isSlotOutlet } from '../utils'
 
+// Todo 暂不研究
 export function hoistStatic(root: RootNode, context: TransformContext) {
   walk(
     root,
