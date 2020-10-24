@@ -38,7 +38,7 @@ export const enum NodeTypes {
   ATTRIBUTE,
   // 指令特性
   DIRECTIVE,
-  // containers
+  // containers，表示是多个表达式的组合
   COMPOUND_EXPRESSION,
   // 存在v-if指令的节点
   IF,
@@ -48,8 +48,10 @@ export const enum NodeTypes {
   TEXT_CALL,
   // codegen
   VNODE_CALL,
+  // Todo 猜测：最终会被编译为方法调用的表达式
   JS_CALL_EXPRESSION,
   JS_OBJECT_EXPRESSION,
+  // Todo 猜测：代表标签上（可能不一定是标签上）的特性的键值对属性的表示
   JS_PROPERTY,
   JS_ARRAY_EXPRESSION,
   JS_FUNCTION_EXPRESSION,
@@ -71,7 +73,7 @@ export const enum ElementTypes {
   ELEMENT,
   // 组件
   COMPONENT,
-  // 插槽
+  // slot元素，插槽
   SLOT,
   // template元素，并且标签上有v-if,v-else,v-else-if,v-for,v-slot指令时
   TEMPLATE
@@ -85,13 +87,13 @@ export interface Node {
 
 // The node's range. The `start` is inclusive and `end` is exclusive.
 // [start, end)
-// 在原始待编译字符串中的位置信息
+// source对应的内容在原始待编译字符串中的位置信息
 export interface SourceLocation {
   // 开始位置
   start: Position
   // 结束位置
   end: Position
-  // start到end之间的内容：[start, end)，包含start指向位置的内容，不包含end指向位置的内容
+  // start到end之间的原始内容：[start, end)，包含start指向位置的内容，不包含end指向位置的内容
   source: string
 }
 
@@ -186,6 +188,7 @@ export interface TemplateNode extends BaseElementNode {
   codegenNode: undefined
 }
 
+// 纯文本节点
 export interface TextNode extends Node {
   type: NodeTypes.TEXT
   content: string
@@ -198,7 +201,9 @@ export interface CommentNode extends Node {
 
 export interface AttributeNode extends Node {
   type: NodeTypes.ATTRIBUTE
+  // 特性名
   name: string
+  // 特性值
   value: TextNode | undefined
 }
 
@@ -220,10 +225,13 @@ export interface DirectiveNode extends Node {
   parseResult?: ForParseResult
 }
 
+// Todo 简单表达式到底是什么？
 export interface SimpleExpressionNode extends Node {
   type: NodeTypes.SIMPLE_EXPRESSION
   content: string
+  // Todo 什么含义？作用是什么？
   isStatic: boolean
+  // Todo 什么含义？作用是什么？
   isConstant: boolean
   /**
    * Indicates this is an identifier for a hoist vnode call and points to the
@@ -247,6 +255,7 @@ export interface InterpolationNode extends Node {
   content: ExpressionNode
 }
 
+// 多个表达式的组合，可以认为是一个虚拟的表达式节点，真正的表达式在children属性中
 export interface CompoundExpressionNode extends Node {
   type: NodeTypes.COMPOUND_EXPRESSION
   children: (
@@ -288,6 +297,14 @@ export interface IfBranchNode extends Node {
   userKey?: AttributeNode | DirectiveNode
 }
 
+/**
+ * compiler-core/src/transforms/vFor.ts --> ForParseResult
+ * source --> ForParseResult.source
+ * valueAlias --> ForParseResult.value
+ * keyAlias --> ForParseResult.key
+ * objectIndexAlias --> ForParseResult.index
+ * 该接口中保存的值是parseResult对象中对应的值，详情可查看ForParseResult接口中的注释
+ */
 export interface ForNode extends Node {
   type: NodeTypes.FOR
   source: ExpressionNode
@@ -347,6 +364,7 @@ export type JSChildNode =
 
 export interface CallExpression extends Node {
   type: NodeTypes.JS_CALL_EXPRESSION
+  // 该属性用于存储标识调用当前表达式的方法，也就是，当需要处理该节点时，使用哪个方法。详情可查看compiler-core/src/runtimeHelpers.ts --> helperNameMap对象映射
   callee: string | symbol
   arguments: (
     | string
@@ -368,6 +386,7 @@ export interface Property extends Node {
   value: JSChildNode
 }
 
+// Todo CompoundExpressionNode和ArrayExpression的区别是什么？
 export interface ArrayExpression extends Node {
   type: NodeTypes.JS_ARRAY_EXPRESSION
   elements: Array<string | JSChildNode>

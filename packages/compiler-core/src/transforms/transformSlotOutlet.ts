@@ -12,6 +12,7 @@ import { buildProps, PropsExpression } from './transformElement'
 import { createCompilerError, ErrorCodes } from '../errors'
 import { RENDER_SLOT } from '../runtimeHelpers'
 
+// 处理<slot>插槽
 export const transformSlotOutlet: NodeTransform = (node, context) => {
   if (isSlotOutlet(node)) {
     const { children, loc } = node
@@ -50,6 +51,7 @@ export function processSlotOutlet(
   node: SlotOutletNode,
   context: TransformContext
 ): SlotOutletProcessResult {
+  // slot标签上name特性的值
   let slotName: string | ExpressionNode = `"default"`
   let slotProps: PropsExpression | undefined = undefined
 
@@ -65,10 +67,13 @@ export function processSlotOutlet(
     }
   }
 
+  // 没有name特性的node节点上的特性列表
   const propsWithoutName = name
     ? node.props.filter(p => p !== name)
     : node.props
   if (propsWithoutName.length > 0) {
+    // 将节点类型的props转换为表达式类型的props
+    // Todo 表达式类型的props应该适用于在生成render时使用吧
     const { props, directives } = buildProps(node, context, propsWithoutName)
     slotProps = props
     if (directives.length) {

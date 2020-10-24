@@ -57,6 +57,7 @@ const directiveImportMap = new WeakMap<DirectiveNode, symbol>()
 
 // generate a JavaScript AST for this element's codegen
 export const transformElement: NodeTransform = (node, context) => {
+  // 只处理元素节点，并且元素节点是html原生标签或者组件
   if (
     !(
       node.type === NodeTypes.ELEMENT &&
@@ -70,13 +71,15 @@ export const transformElement: NodeTransform = (node, context) => {
   // processed and merged.
   return function postTransformElement() {
     const { tag, props } = node
+    // 当前元素节点是否是组件
     const isComponent = node.tagType === ElementTypes.COMPONENT
 
     // The goal of the transform is to create a codegenNode implementing the
     // VNodeCall interface.
     const vnodeTag = isComponent
-      ? resolveComponentType(node as ComponentNode, context)
-      : `"${tag}"`
+      ? resolveComponentType(node as ComponentNode, context) // 组件
+      : `"${tag}"` // html原生标签
+    // 是否是动态组件：<component is="target" />
     const isDynamicComponent =
       isObject(vnodeTag) && vnodeTag.callee === RESOLVE_DYNAMIC_COMPONENT
 
@@ -154,7 +157,7 @@ export const transformElement: NodeTransform = (node, context) => {
         if (hasDynamicSlots) {
           patchFlag |= PatchFlags.DYNAMIC_SLOTS
         }
-      } else if (node.children.length === 1 && vnodeTag !== TELEPORT) {
+      } else if (node.children.length === 1 && vnodeTag !== TELEPORT) { // Todo 这是干嘛？
         const child = node.children[0]
         const type = child.type
         // check for dynamic text children
@@ -223,6 +226,8 @@ export function resolveComponentType(
 
   // 1. dynamic component
   const isProp =
+    // findProp(node, 'is')：is / :is / v-bind:is
+    // findDir(node, 'is')：v-is
     node.tag === 'component' ? findProp(node, 'is') : findDir(node, 'is')
   if (isProp) {
     const exp =
@@ -246,6 +251,7 @@ export function resolveComponentType(
   }
 
   // 3. user component (from setup bindings)
+  // Todo 正常流程中，context.bindingMetadata是空对象，bindingMetadata是干嘛的？
   if (context.bindingMetadata[tag] === 'setup') {
     return `$setup[${JSON.stringify(tag)}]`
   }
@@ -270,6 +276,7 @@ export function buildProps(
   dynamicPropNames: string[]
 } {
   const { tag, loc: elementLoc } = node
+  // 当前节点是否组件节点
   const isComponent = node.tagType === ElementTypes.COMPONENT
   let properties: ObjectExpression['properties'] = []
   const mergeArgs: PropsExpression[] = []
@@ -285,7 +292,9 @@ export function buildProps(
   let hasVnodeHook = false
   const dynamicPropNames: string[] = []
 
+  // Todo 猜测：分析标签上的特性，生成打补丁时的标志位
   const analyzePatchFlag = ({ key, value }: Property) => {
+    // Todo 主要用于确定键是否是动态的？
     if (isStaticExp(key)) {
       const name = key.content
       const isEventHandler = isOn(name)
@@ -333,12 +342,13 @@ export function buildProps(
   for (let i = 0; i < props.length; i++) {
     // static attribute
     const prop = props[i]
-    if (prop.type === NodeTypes.ATTRIBUTE) {
+    if (prop.type === NodeTypes.ATTRIBUTE) { // 普通特性
       const { loc, name, value } = prop
       if (name === 'ref') {
         hasRef = true
       }
       // skip :is on <component>
+      // Todo is是在哪里处理的？
       if (name === 'is' && tag === 'component') {
         continue
       }
@@ -356,14 +366,33 @@ export function buildProps(
           )
         )
       )
-    } else {
+    } else { // 指令特性
       // directives
+      // name：指令名，比如v-for中的"for"
       const { name, arg, exp, loc } = prop
+      // 是否是v-bind指令
       const isBind = name === 'bind'
+      // 是否是v-on指令
       const isOn = name === 'on'
 
       // skip v-slot - it is handled by its dedicated transform.
+      // 跳过v-slot，有专门处理它的转换器
       if (name === 'slot') {
+        /**
+         * 使用插槽时，除非是默认插槽，否则必须使用<template>标签对插入的内容进行包裹。
+         * <HelloWorld>
+         *   <div #test>Hello</div>
+         * </HelloWorld>
+         * 这种方式无法插入。
+         *
+         * <HelloWorld>
+         *   <template #test>
+         *     <div>Hello</div>
+         *   </template>
+         * </HelloWorld>
+         * 需要通过这种方式插入。
+         * Todo 这是通过代码测试得出的结论，应该研究一下代码是否也是这个逻辑，确认一下
+         */
         if (!isComponent) {
           context.onError(
             createCompilerError(ErrorCodes.X_V_SLOT_MISPLACED, loc)
@@ -376,7 +405,9 @@ export function buildProps(
         continue
       }
       // skip v-is and :is on <component>
+      // 新增v-is指令
       if (
+        // Todo v-is指令不需要判断tag是否是component？
         name === 'is' ||
         (isBind && tag === 'component' && isBindKey(arg, 'is'))
       ) {
@@ -390,13 +421,20 @@ export function buildProps(
       // special case for v-bind and v-on with no argument
       if (!arg && (isBind || isOn)) {
         hasDynamicKeys = true
-        if (exp) {
+        if (exp) { // Todo 不知道为什么要做这些
           if (properties.length) {
             mergeArgs.push(
               createObjectExpression(dedupeProperties(properties), elementLoc)
             )
             properties = []
           }
+          // Todo 猜测：由于v-on="obj"和v-bind="obj"这种形式的绑定有优先级的考虑，所以先把v-on / v-bind之前的特性放入mergeArgs中，然后再放入v-bind / v-on相关的表达式，保证顺序很重要，比如：
+          /**
+           * 1）<div title="one" v-bind="{title:"two"}">hello</div>
+           * 最终，div的title特性的值为"two"
+           * 2）<div v-bind="{title:"two"}" title="one">hello</div>
+           * 最终，div的title特性的值为"one"
+           */
           if (isBind) {
             mergeArgs.push(exp)
           } else {
@@ -435,10 +473,12 @@ export function buildProps(
         }
       } else {
         // no built-in transform, this is a user custom directive.
+        // 如果是v-if、v-for等呢？
+        // 答：v-if、v-for特性已经在各自的transform中被删除了
         runtimeDirectives.push(prop)
       }
     }
-  }
+  } // for循环结束括号
 
   let propsExpression: PropsExpression | undefined = undefined
 
@@ -504,19 +544,26 @@ export function buildProps(
 // modifiers. We also need to merge static and dynamic class / style attributes.
 // - onXXX handlers / style: merge into array
 // - class: merge into single expression with concatenation
+// 重复的特性放入一个对象字面量中。
+// 字面性重复的特性（个人理解：非动态的普通特性）会在解析阶段给出警告，
+// 然而，可能遇到具有不同修饰符的重复'onXXX'处理器。我们也需要合并静态和动态的class/style特性。
+// - onXXX处理器 / style：合并到数组中
+// - class：合并到联接的单个表达式中
+// Todo 该方法用于删除标签上重名的特性，并对style、class和onXXX做特殊处理，这三种类型的特性如上面的注释所述，可以重复
 function dedupeProperties(properties: Property[]): Property[] {
   const knownProps: Map<string, Property> = new Map()
   const deduped: Property[] = []
   for (let i = 0; i < properties.length; i++) {
     const prop = properties[i]
     // dynamic keys are always allowed
+    // Todo 什么意思？
     if (prop.key.type === NodeTypes.COMPOUND_EXPRESSION || !prop.key.isStatic) {
       deduped.push(prop)
       continue
     }
     const name = prop.key.content
     const existing = knownProps.get(name)
-    if (existing) {
+    if (existing) { // 如果已存在，也就是说，标签上存在重名的特性
       if (name === 'style' || name === 'class' || name.startsWith('on')) {
         mergeAsArray(existing, prop)
       }
@@ -529,6 +576,7 @@ function dedupeProperties(properties: Property[]): Property[] {
   return deduped
 }
 
+// 将incoming属性的值放入existing属性的值中
 function mergeAsArray(existing: Property, incoming: Property) {
   if (existing.value.type === NodeTypes.JS_ARRAY_EXPRESSION) {
     existing.value.elements.push(incoming.value)
@@ -540,6 +588,7 @@ function mergeAsArray(existing: Property, incoming: Property) {
   }
 }
 
+// 生成指令的参数
 function buildDirectiveArgs(
   dir: DirectiveNode,
   context: TransformContext

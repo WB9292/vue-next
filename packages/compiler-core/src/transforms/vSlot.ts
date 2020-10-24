@@ -40,10 +40,11 @@ const defaultFallback = createSimpleExpression(`undefined`, false)
 // A NodeTransform that:
 // 1. Tracks scope identifiers for scoped slots so that they don't get prefixed
 //    by transformExpression. This is only applied in non-browser builds with
-//    { prefixIdentifiers: true }.
+//    { prefixIdentifiers: true }. // Todo 所以prefixIdentifiers表示非浏览器环境？
 // 2. Track v-slot depths so that we know a slot is inside another slot.
 //    Note the exit callback is executed before buildSlots() on the same node,
 //    so only nested slots see positive numbers.
+// Todo 处理作用域插槽？感觉对于正常流程没什么影响
 export const trackSlotScopes: NodeTransform = (node, context) => {
   if (
     node.type === NodeTypes.ELEMENT &&

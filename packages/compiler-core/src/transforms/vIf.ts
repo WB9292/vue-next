@@ -35,6 +35,7 @@ import {
 import { injectProp, findDir, findProp } from '../utils'
 import { PatchFlags, PatchFlagNames } from '@vue/shared'
 
+// 处理v-if指令
 export const transformIf = createStructuralDirectiveTransform(
   /^(if|else|else-if)$/,
   (node, dir, context) => {

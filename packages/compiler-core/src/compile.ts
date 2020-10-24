@@ -27,22 +27,22 @@ export function getBaseTransformPreset(
 ): TransformPreset {
   return [
     [
-      transformOnce,
-      transformIf,
-      transformFor,
+      transformOnce, // 有onExit
+      transformIf, // 有onExit
+      transformFor, // 有onExit
       ...(!__BROWSER__ && prefixIdentifiers
         ? [
             // order is important
             trackVForSlotScopes,
             transformExpression
           ]
-        : __BROWSER__ && __DEV__
+        : __BROWSER__ && __DEV__ // Todo 生产环境不需要处理表达式？
           ? [transformExpression]
           : []),
-      transformSlotOutlet,
-      transformElement,
-      trackSlotScopes,
-      transformText
+      transformSlotOutlet, // 没有onExit
+      transformElement, // 有onExit
+      trackSlotScopes, // 有onExit
+      transformText // 有onExit
     ],
     {
       on: transformOn,

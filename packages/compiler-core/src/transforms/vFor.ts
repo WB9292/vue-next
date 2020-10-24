@@ -43,6 +43,7 @@ import { processExpression } from './transformExpression'
 import { validateBrowserExpression } from '../validateExpression'
 import { PatchFlags, PatchFlagNames } from '@vue/shared'
 
+// 处理v-for指令
 export const transformFor = createStructuralDirectiveTransform(
   'for',
   (node, dir, context) => {
@@ -57,8 +58,10 @@ export const transformFor = createStructuralDirectiveTransform(
       const keyProperty = keyProp
         ? createObjectProperty(
             `key`,
+            // <div key="test"></div>以这种方式声明的普通特性
             keyProp.type === NodeTypes.ATTRIBUTE
               ? createSimpleExpression(keyProp.value!.content, true)
+              // <div :key="test"></div>以这种方式声明的指令特性
               : keyProp.exp!
           )
         : null
@@ -76,6 +79,7 @@ export const transformFor = createStructuralDirectiveTransform(
       }
 
       const isStableFragment =
+        // Todo 什么情况下，source不是简单表达式？
         forNode.source.type === NodeTypes.SIMPLE_EXPRESSION &&
         forNode.source.isConstant
       const fragmentFlag = isStableFragment
@@ -218,6 +222,7 @@ export function processFor(
     keyAlias: key,
     objectIndexAlias: index,
     parseResult,
+    // 当node不是template标签时，以当前节点作为子节点，这样就可以继续处理剩余的特性节点了
     children: isTemplateNode(node) ? node.children : [node]
   }
 
@@ -226,6 +231,7 @@ export function processFor(
   // bookkeeping
   // Todo 作用是什么？
   scopes.vFor++
+  // Todo 正常流程中，context.prefixIdentifiers为false，所以暂不研究这里的分支
   if (!__BROWSER__ && context.prefixIdentifiers) {
     // scope management
     // inject identifiers to context
@@ -261,6 +267,7 @@ const stripParensRE = /^\(|\)$/g
 
 // 例子：v-for="(value, name, index) in object"
 export interface ForParseResult {
+  // 上例中"object"的相关信息
   source: ExpressionNode
   // 上例中"value"的相关信息
   value: ExpressionNode | undefined
@@ -389,6 +396,7 @@ function createAliasExpression(
   return createSimpleExpression(
     content,
     false,
+    // 生成表达式的位置信息
     getInnerRange(range, offset, content.length)
   )
 }

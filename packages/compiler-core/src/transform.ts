@@ -80,8 +80,11 @@ export interface ImportItem {
 export interface TransformContext extends Required<TransformOptions> {
   // 组件的模板字符串的根节点
   root: RootNode
+  // 保存需要引入的vue帮助方法
   helpers: Set<symbol>
+  // 保存当前编译字符串上下文中会用的所有自定义组件
   components: Set<string>
+  // 保存当前编译字符串上下文中会用的所有自定义指令
   directives: Set<string>
   hoists: (JSChildNode | null)[]
   imports: Set<ImportItem>
@@ -151,7 +154,6 @@ export function createTransformContext(
 
     // state
     root,
-    // Todo 作用是什么？
     helpers: new Set(),
     components: new Set(),
     directives: new Set(),
@@ -390,7 +392,7 @@ export function traverseNode(
         context.helper(CREATE_COMMENT)
       }
       break
-    case NodeTypes.INTERPOLATION: // Todo 这个是干嘛的？插值操作符{{}}？
+    case NodeTypes.INTERPOLATION: // 插值操作符
       // no need to traverse, but we need to inject toString helper
       if (!context.ssr) {
         context.helper(TO_DISPLAY_STRING)
@@ -417,7 +419,7 @@ export function traverseNode(
   // exit transforms
   context.currentNode = node
   let i = exitFns.length
-  while (i--) {
+  while (i--) { // 注意exitFns的执行顺序，从后向前执行
     exitFns[i]()
   }
 }

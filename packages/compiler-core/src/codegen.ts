@@ -100,6 +100,7 @@ function createCodegenContext(
     prefixIdentifiers,
     sourceMap,
     filename,
+    // Todo 正常流程中，没有scopeId这个选项，暂不研究
     scopeId,
     optimizeImports,
     runtimeGlobalName,
@@ -110,8 +111,10 @@ function createCodegenContext(
     column: 1,
     line: 1,
     offset: 0,
+    // 为了让生成的代码有缩进，这里记录缩进的层级
     indentLevel: 0,
     pure: false,
+    // Todo 应该与sourceMap有关系，暂不研究
     map: undefined,
     helper(key) {
       return `_${helperNameMap[key]}`
@@ -135,9 +138,11 @@ function createCodegenContext(
         }
       }
     },
+    // 缩进并换行
     indent() {
       newline(++context.indentLevel)
     },
+    // 减少缩进，由withoutNewLine参数决定是否换行
     deindent(withoutNewLine = false) {
       if (withoutNewLine) {
         --context.indentLevel
@@ -145,6 +150,7 @@ function createCodegenContext(
         newline(--context.indentLevel)
       }
     },
+    // 换行
     newline() {
       newline(context.indentLevel)
     }
@@ -197,7 +203,9 @@ export function generate(
     ssr
   } = context
   const hasHelpers = ast.helpers.length > 0
+  // 是否使用with(){}
   const useWithBlock = !prefixIdentifiers && mode !== 'module'
+  // Todo 暂不研究scopeId
   const genScopeId = !__BROWSER__ && scopeId != null && mode === 'module'
 
   // preambles
@@ -231,6 +239,7 @@ export function generate(
     // function mode const declarations should be inside with block
     // also they should be renamed to avoid collision with user properties
     if (hasHelpers) {
+      // 引入帮助函数
       push(
         `const { ${ast.helpers
           .map(s => `${helperNameMap[s]}: _${helperNameMap[s]}`)
@@ -243,17 +252,20 @@ export function generate(
 
   // generate asset resolution statements
   if (ast.components.length) {
+    // 引入需要的组件
     genAssets(ast.components, 'component', context)
     if (ast.directives.length || ast.temps > 0) {
       newline()
     }
   }
   if (ast.directives.length) {
+    // 引入指令
     genAssets(ast.directives, 'directive', context)
     if (ast.temps > 0) {
       newline()
     }
   }
+  // Todo 好像与正常流程无关，暂不研究
   if (ast.temps > 0) {
     push(`let `)
     for (let i = 0; i < ast.temps; i++) {
@@ -325,6 +337,7 @@ function genFunctionPreamble(ast: RootNode, context: CodegenContext) {
       // in "with" mode, helpers are declared inside the with block to avoid
       // has check cost, but hoists are lifted out of the function - we need
       // to provide the helper here.
+      // Todo 与hoistStatic选项有关，暂不研究
       if (ast.hoists.length) {
         const staticHelpers = [
           CREATE_VNODE,
@@ -426,11 +439,13 @@ function genModulePreamble(
   push(`export `)
 }
 
+// 生成引入组件或指令的代码，示例：`const _component_Hello = _resolveComponent("Hello")`
 function genAssets(
   assets: string[],
   type: 'component' | 'directive',
   { helper, push, newline }: CodegenContext
 ) {
+  // 解析器的名字
   const resolver = helper(
     type === 'component' ? RESOLVE_COMPONENT : RESOLVE_DIRECTIVE
   )
@@ -544,7 +559,7 @@ function genNode(node: CodegenNode | symbol | string, context: CodegenContext) {
     context.push(node)
     return
   }
-  if (isSymbol(node)) {
+  if (isSymbol(node)) { // Todo 什么情况下会是Symbol类型？
     context.push(context.helper(node))
     return
   }

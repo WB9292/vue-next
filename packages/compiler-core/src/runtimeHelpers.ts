@@ -2,6 +2,7 @@ export const FRAGMENT = Symbol(__DEV__ ? `Fragment` : ``)
 export const TELEPORT = Symbol(__DEV__ ? `Teleport` : ``)
 export const SUSPENSE = Symbol(__DEV__ ? `Suspense` : ``)
 export const KEEP_ALIVE = Symbol(__DEV__ ? `KeepAlive` : ``)
+// Todo 这个是干嘛的？
 export const BASE_TRANSITION = Symbol(__DEV__ ? `BaseTransition` : ``)
 export const OPEN_BLOCK = Symbol(__DEV__ ? `openBlock` : ``)
 export const CREATE_BLOCK = Symbol(__DEV__ ? `createBlock` : ``)

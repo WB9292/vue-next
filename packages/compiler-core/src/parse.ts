@@ -56,11 +56,11 @@ export const defaultParserOptions: MergedParserOptions = {
 
 // Todo 文本模式是干嘛的？
 export const enum TextModes {
-  //          | Elements | Entities | End sign              | Inside of
+  //          | Elements | Entities（是否处理内部的内容） | End sign              | Inside of
   DATA, //    | ✔        | ✔        | End tags of ancestors |
   RCDATA, //  | ✘        | ✔        | End tag of the parent | <textarea>
-  RAWTEXT, // | ✘        | ✘        | End tag of the parent | <style>,<script>
-  CDATA,
+  RAWTEXT, // | ✘        | ✘        | End tag of the parent | <style>,<script> // Todo 猜测：也不生成元素，不处理内部的内容
+  CDATA, // Todo 这个模式先不必细究
   ATTRIBUTE_VALUE
 }
 
@@ -172,7 +172,7 @@ function parseChildren(
             emitError(context, ErrorCodes.MISSING_END_TAG_NAME, 2)
             advanceBy(context, 3)
             continue
-          } else if (/[a-z]/i.test(s[2])) { // Todo 这不应该是结束标签吗？为什么要抛出错误？猜测：在parseElement()方法中，已经解析过结束标签了，所以不会再有结束标签存在，详情可查看parseElement()方法
+          } else if (/[a-z]/i.test(s[2])) { // 这不应该是结束标签吗？为什么要抛出错误？答：在parseElement()方法中，已经解析过结束标签了，所以不会再有结束标签存在，详情可查看parseElement()方法，这里是模板字符串有错误
             emitError(context, ErrorCodes.X_INVALID_END_TAG)
             parseTag(context, TagType.End, parent)
             continue
@@ -622,7 +622,7 @@ function parseAttributes(
 function parseAttribute(
   context: ParserContext,
   nameSet: Set<string>
-): AttributeNode | DirectiveNode {
+): AttributeNode | DirectiveNode { // 特性只有两种类型：普通特性和指令特性
   __TEST__ && assert(/^[^\t\r\n\f />]/.test(context.source))
 
   // Name.
@@ -888,14 +888,13 @@ function parseInterpolation(
   const startOffset = preTrimContent.indexOf(content)
   if (startOffset > 0) { // startOffset > 0成立时，说明preTrimContent字符串的开头有空白字符
     // 更新innerStart，跳过开头空白字符的位置
-    // Todo 为什么要以rawContent为基础来更新innerStart而不以preTrimContent，毕竟startOffset是相对于preTrimContent而获取的
     advancePositionWithMutation(innerStart, rawContent, startOffset)
   }
   // preTrimContent.length - content.length - startOffset表示preTrimContent字符串中结尾的空白字符的长度
-  // endOffset表示rawContent中最后一个非空字符的偏移量
+  // endOffset表示rawContent中最后结尾第一个空字符的偏移量，比如"{{ hello }}，指向"}}"前面的空字符
   const endOffset =
     rawContentLength - (preTrimContent.length - content.length - startOffset)
-  // 更新innerEnd，指向rawContent的最后结尾非空字符的位置
+  // 更新innerEnd，指向rawContent的最后结尾第一个空字符的位置，比如"{{ hello }}，指向"}}"前面的空字符
   advancePositionWithMutation(innerEnd, rawContent, endOffset)
   // 更新编译器上下文对象中的位置，跳过关闭分隔符
   advanceBy(context, close.length)
@@ -925,10 +924,11 @@ function parseText(context: ParserContext, mode: TextModes): TextNode {
     endTokens.push(']]>')
   }
 
+  // endIndex指向可能存在的"<"或"{{"的位置，只解析纯文本，"<"可能是标签、注释等，"{{"可能是插值运算符
   let endIndex = context.source.length
   for (let i = 0; i < endTokens.length; i++) {
     const index = context.source.indexOf(endTokens[i], 1)
-    if (index !== -1 && endIndex > index) {
+    if (index !== -1 && endIndex > index) { // Todo 什么情况下endIndex > index不成立？
       endIndex = index
     }
   }
@@ -978,7 +978,7 @@ function getCursor(context: ParserContext): Position {
 }
 
 // Selection是选中的区域，由start和end指定的区域
-// Todo 这个区域把start和end都包含在内吗？还是不包含end？
+// 这个区域把start和end都包含在内吗？还是不包含end？答：不包含end，[start, end)
 function getSelection(
   context: ParserContext,
   start: Position,

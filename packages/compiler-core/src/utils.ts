@@ -61,6 +61,12 @@ export const isMemberExpression = (path: string): boolean => {
   return memberExpRE.test(path.trim())
 }
 
+/**
+ * 以loc为参考点，生成一个新的SourceLocation，该新值是以offset为偏移量，以length为长度的新位置
+ * @param loc
+ * @param offset
+ * @param length
+ */
 export function getInnerRange(
   loc: SourceLocation,
   offset: number,
@@ -222,6 +228,7 @@ export function isTemplateNode(
   )
 }
 
+// 是否是插槽元素<slot>
 export function isSlotOutlet(
   node: RootNode | TemplateChildNode
 ): node is SlotOutletNode {

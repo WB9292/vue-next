@@ -75,6 +75,9 @@ export interface TransformOptions {
   /**
    * An object of { name: transform } to be applied to every directive attribute
    * node found on element nodes.
+   * 正常流程中，各指令转换器的具体位置：
+   * v-cloak、v-html、v-text、v-model、v-on、v-show：compiler-dom/src/index.ts --> DOMDirectiveTransforms
+   * v-bind：compiler-core/src/compile.ts --> getBaseTransformPreset()
    */
   directiveTransforms?: Record<string, DirectiveTransform | undefined>
   /**
