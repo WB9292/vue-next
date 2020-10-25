@@ -362,7 +362,9 @@ export function traverseNode(
 ) {
   context.currentNode = node
   // apply transform plugins
-  // 在compiler-core/src/compile.ts --> getBaseTransformPreset()方法中返回
+  // 正常流程中，有两处传入了nodeTransform：
+  // 1）compiler-dom/src/index --> compile()
+  // 2）在compiler-core/src/compile.ts --> getBaseTransformPreset()
   const { nodeTransforms } = context
   const exitFns = []
   // 使用所有nodeTransforms对node进行处理

@@ -203,7 +203,7 @@ export interface AttributeNode extends Node {
   type: NodeTypes.ATTRIBUTE
   // 特性名
   name: string
-  // 特性值
+  // 特性值，纯文本节点
   value: TextNode | undefined
 }
 
@@ -214,7 +214,8 @@ export interface DirectiveNode extends Node {
   type: NodeTypes.DIRECTIVE
   // 指令名，"test"
   name: string
-  // Todo exp和arg的区别是什么？猜测：exp保存的是上例中的go相关的内容，而arg保存的是上例中name相关的内容
+  // exp和arg的区别是什么？答：exp保存的是上例中的go相关的内容，而arg保存的是上例中name相关的内容
+  // exp中的isStatic属性总是为false，因为指令的值总是动态的
   exp: ExpressionNode | undefined
   arg: ExpressionNode | undefined
   // 修饰符，["one", "two"]
@@ -229,7 +230,7 @@ export interface DirectiveNode extends Node {
 export interface SimpleExpressionNode extends Node {
   type: NodeTypes.SIMPLE_EXPRESSION
   content: string
-  // Todo 什么含义？作用是什么？
+  // 是否是静态内容，也就是说，content对应的内容在运行时是否需要运行
   isStatic: boolean
   // Todo 什么含义？作用是什么？
   isConstant: boolean
@@ -250,8 +251,14 @@ export interface SimpleExpressionNode extends Node {
   isRuntimeConstant?: boolean
 }
 
+/**
+ * 插值运算符节点
+ * 例子："{{ foo < bar + foo }}"
+ * 插值运算符节点表示的是整个运算符
+ */
 export interface InterpolationNode extends Node {
   type: NodeTypes.INTERPOLATION
+  // 插值运算符内容的信息，表示的是"foo < bar + foo"相关的信息
   content: ExpressionNode
 }
 

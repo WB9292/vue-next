@@ -183,7 +183,7 @@ describe('compiler: transform', () => {
     expect(spy.mock.calls[2][0]).toBe(d1)
   })
 
-  test('context.hoist', () => {
+  test('context.hoist', () => { // Todo 不懂，应该与hoistStatic有关
     const ast = baseParse(`<div :id="foo"/><div :id="bar"/>`)
     const hoisted: ExpressionNode[] = []
     const mock: NodeTransform = (node, context) => {
@@ -234,7 +234,7 @@ describe('compiler: transform', () => {
     expect(ast.helpers).toContain(CREATE_COMMENT)
   })
 
-  describe('root codegenNode', () => {
+  describe('root codegenNode', () => { // Todo 要再好好研究一下
     function transformWithCodegen(template: string) {
       const ast = baseParse(template)
       transform(ast, {

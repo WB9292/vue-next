@@ -19,6 +19,7 @@ export interface ParserOptions {
   isVoidTag?: (tag: string) => boolean
   /**
    * e.g. elements that should preserve whitespace inside, e.g. `<pre>`
+   * 注意，pre的作用是保留内部的空白符
    */
   isPreTag?: (tag: string) => boolean
   /**

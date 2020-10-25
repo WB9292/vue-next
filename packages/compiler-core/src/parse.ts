@@ -58,10 +58,10 @@ export const defaultParserOptions: MergedParserOptions = {
 export const enum TextModes {
   //          | Elements | Entities（是否处理内部的内容） | End sign              | Inside of
   DATA, //    | ✔        | ✔        | End tags of ancestors |
-  RCDATA, //  | ✘        | ✔        | End tag of the parent | <textarea>
-  RAWTEXT, // | ✘        | ✘        | End tag of the parent | <style>,<script> // Todo 猜测：也不生成元素，不处理内部的内容
+  RCDATA, //  | ✘        | ✔        | End tag of the parent | <textarea> // 不生成元素，处理内部的内容
+  RAWTEXT, // | ✘        | ✘        | End tag of the parent | <style>,<script> // 不生成元素，也不处理内部的内容
   CDATA, // Todo 这个模式先不必细究
-  ATTRIBUTE_VALUE
+  ATTRIBUTE_VALUE// Todo 与正常流程关系不大，无需细究
 }
 
 /**
@@ -127,8 +127,10 @@ function parseChildren(
   mode: TextModes,
   ancestors: ElementNode[]
 ): TemplateChildNode[] {
-  // 获取ancestors中的最后一个元素，Todo  parent是什么？
+  // 获取ancestors中的最后一个元素
+  // parent是什么？答：当前待解析子元素的直接父元素
   const parent = last(ancestors)
+  // Todo 不知道ns在整个系统中的具体作用是什么
   const ns = parent ? parent.ns : Namespaces.HTML
   const nodes: TemplateChildNode[] = []
 
@@ -137,9 +139,10 @@ function parseChildren(
     const s = context.source
     let node: TemplateChildNode | TemplateChildNode[] | undefined = undefined
 
+    // 从代码中看，正常情况下，有六种类型的子元素
     if (mode === TextModes.DATA || mode === TextModes.RCDATA) {
       // delimiters默认是[`{{`, `}}`]，表示文本插值
-      if (!context.inVPre && startsWith(s, context.options.delimiters[0])) {
+      if (!context.inVPre && startsWith(s, context.options.delimiters[0])) { // ①插值运算符子元素
         // '{{'
         node = parseInterpolation(context, mode)
       } else if (mode === TextModes.DATA && s[0] === '<') {
@@ -148,12 +151,12 @@ function parseChildren(
           emitError(context, ErrorCodes.EOF_BEFORE_TAG_NAME, 1)
         } else if (s[1] === '!') { // Todo 这个分支的代码暂不研究
           // https://html.spec.whatwg.org/multipage/parsing.html#markup-declaration-open-state
-          if (startsWith(s, '<!--')) {
+          if (startsWith(s, '<!--')) { // ②注释子元素
             node = parseComment(context)
-          } else if (startsWith(s, '<!DOCTYPE')) {
+          } else if (startsWith(s, '<!DOCTYPE')) { // ③DOCTYPE子元素
             // Ignore DOCTYPE by a limitation.
             node = parseBogusComment(context)
-          } else if (startsWith(s, '<![CDATA[')) {
+          } else if (startsWith(s, '<![CDATA[')) { // ④CDATA子元素
             if (ns !== Namespaces.HTML) {
               node = parseCDATA(context, ancestors)
             } else {
@@ -184,7 +187,7 @@ function parseChildren(
             )
             node = parseBogusComment(context)
           }
-        } else if (/[a-z]/i.test(s[1])) { // 开始标签
+        } else if (/[a-z]/i.test(s[1])) { // ⑤元素节点子元素
           node = parseElement(context, ancestors)
         } else if (s[1] === '?') {
           emitError(
@@ -194,12 +197,12 @@ function parseChildren(
           )
           node = parseBogusComment(context)
         } else {
-          emitError(context, ErrorCodes.INVALID_FIRST_CHARACTER_OF_TAG_NAME, 1)
+          emitError(context, ErrorCodes.INVALID_FIRST_CHARACTER_OF_TAG_NAME, 1) // 正如INVALID_FIRST_CHARACTER_OF_TAG_NAME错误文案所述，如果希望使用"<"，可使用"&lt;"代替
         }
       }
     }
     if (!node) {
-      node = parseText(context, mode)
+      node = parseText(context, mode) // ⑥纯文本子元素
     }
 
     if (isArray(node)) {
@@ -213,6 +216,7 @@ function parseChildren(
 
   // Whitespace management for more efficient output
   // (same as v2 whitespace: 'condense')
+  // 由于某些节点（连续空白符、注释等）会删除，该变量用于标识，是否存在被删除的节点
   let removedWhitespace = false
   if (mode !== TextModes.RAWTEXT) {
     for (let i = 0; i < nodes.length; i++) {
@@ -220,7 +224,7 @@ function parseChildren(
       if (!context.inPre && node.type === NodeTypes.TEXT) {
         // [^\t\r\n\f ]的意思是：在node.content中，只要有一个字符不是'\t\r\n\f '，就返回true
         // 所以整个条件的含义是，node.content中只有'\t\r\n\f '这种类型的字符
-        // Todo 这种类型的字符是在哪里收集的？
+        // 这种类型的字符串是在哪里收集的？答：就像下面的If提到的，这几种情况下就会产生这种只有空白符的字符串
         if (!/[^\t\r\n\f ]/.test(node.content)) {
           const prev = nodes[i - 1]
           const next = nodes[i + 1]
@@ -520,13 +524,15 @@ function parseTag(
     if (type === TagType.End && isSelfClosing) {
       emitError(context, ErrorCodes.END_TAG_WITH_TRAILING_SOLIDUS)
     }
+    // 跳过标签结尾的">"或"/>"，至此，开始标签/结束标签全部解析完成
     advanceBy(context, isSelfClosing ? 2 : 1)
   }
 
+  // 接下来是确定元素节点的类型
   let tagType = ElementTypes.ELEMENT
   const options = context.options
   if (!context.inVPre && !options.isCustomElement(tag)) {
-    // 是否有:is指令
+    // 是否有v-is指令
     const hasVIs = props.some(
       p => p.type === NodeTypes.DIRECTIVE && p.name === 'is'
     )
@@ -617,7 +623,6 @@ function parseAttributes(
  * 如果返回的是AttributeNode类型的值，则是纯粹的特性，v- : @等都是指令节点
  * @param context
  * @param nameSet
- * Todo 这个方法还有很多没有理解的地方
  */
 function parseAttribute(
   context: ParserContext,
@@ -633,7 +638,7 @@ function parseAttribute(
   // 特性名
   const name = match[0]
 
-  if (nameSet.has(name)) {
+  if (nameSet.has(name)) { // 同一特性多次出现，给出警告
     emitError(context, ErrorCodes.DUPLICATE_ATTRIBUTE)
   }
   nameSet.add(name)
@@ -766,11 +771,13 @@ function parseAttribute(
       }
     }
 
-    // Todo 为什么要这么处理？
+    // 为什么要这么处理？答：因为如果存在引号，则value.loc.source的值中存在引号，比如'"hello"'这样，所以需要将引号删除
     if (value && value.isQuoted) { // isQuoted表示值以单引号或双引号包裹
       const valueLoc = value.loc
+      // start开始位置前进一步，跳过开头的引号
       valueLoc.start.offset++
       valueLoc.start.column++
+      // end回退一步
       valueLoc.end = advancePositionWithClone(valueLoc.start, value.content)
       valueLoc.source = valueLoc.source.slice(1, -1)
     }
@@ -819,7 +826,7 @@ function parseAttributeValue(
 
   const quote = context.source[0]
   const isQuoted = quote === `"` || quote === `'`
-  if (isQuoted) {
+  if (isQuoted) { // 特性值由引号包裹
     // Quoted value.
     // 跳过开头的引号
     advanceBy(context, 1)
@@ -836,7 +843,7 @@ function parseAttributeValue(
       // 跳过结尾的引号
       advanceBy(context, 1)
     }
-  } else {
+  } else { // 特性值无引号包裹
     // Unquoted
     const match = /^[^\t\r\n\f >]+/.exec(context.source)
     if (!match) {
@@ -915,7 +922,6 @@ function parseInterpolation(
   }
 }
 
-// Todo 待研究
 function parseText(context: ParserContext, mode: TextModes): TextNode {
   __TEST__ && assert(context.source.length > 0)
 
@@ -924,11 +930,14 @@ function parseText(context: ParserContext, mode: TextModes): TextNode {
     endTokens.push(']]>')
   }
 
-  // endIndex指向可能存在的"<"或"{{"的位置，只解析纯文本，"<"可能是标签、注释等，"{{"可能是插值运算符
+  // endIndex指向可能存在的"<"或"{{"的位置，只解析endIndex之前的纯文本，"<"可能是标签、注释等，"{{"可能是插值运算符
   let endIndex = context.source.length
   for (let i = 0; i < endTokens.length; i++) {
     const index = context.source.indexOf(endTokens[i], 1)
-    if (index !== -1 && endIndex > index) { // Todo 什么情况下endIndex > index不成立？
+    // 什么情况下endIndex > index不成立？
+    // 答：这里是寻找source中离开始最近的'<'或'{{'，比如："hello<div>{{test}}</div>"，这里寻找的是"<"下标位置，而不是"{{"，
+    // 对于该字符串，第一次循环，endIndex=24，index=5，第二次循环，endIndex=5，index=10，此时保留5而不更新为10
+    if (index !== -1 && endIndex > index) {
       endIndex = index
     }
   }
@@ -1058,7 +1067,6 @@ function emitError(
   )
 }
 
-// Todo 要具体研究代码，应该是用于判断context中的源码是否是以结束标签开始
 function isEnd(
   context: ParserContext,
   mode: TextModes,
@@ -1071,7 +1079,7 @@ function isEnd(
       // 是否以结束标签开始
       if (startsWith(s, '</')) {
         //TODO: probably bad performance
-        for (let i = ancestors.length - 1; i >= 0; --i) {
+        for (let i = ancestors.length - 1; i >= 0; --i) { // 这里要一直循环祖先元素，是为了处理像"<div><span></div></span>"这样嵌套错误的异常情况，符合原生html的处理方法，Todo 可暂不细究
           if (startsWithEndTagOpen(s, ancestors[i].tag)) {
             return true
           }
@@ -1102,6 +1110,6 @@ function startsWithEndTagOpen(source: string, tag: string): boolean {
   return (
     startsWith(source, '</') &&
     source.substr(2, tag.length).toLowerCase() === tag.toLowerCase() &&
-    /[\t\r\n\f />]/.test(source[2 + tag.length] || '>')
+    /[\t\r\n\f />]/.test(source[2 + tag.length] || '>') // 标签名之后没有其他字符，也就是说要确定source对应的结束标签就是tag
   )
 }
