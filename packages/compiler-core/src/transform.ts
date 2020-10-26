@@ -198,6 +198,7 @@ export function createTransformContext(
         throw new Error(`Cannot remove root node.`)
       }
       const list = context.parent!.children
+      // 待移除的节点的下标位置
       const removalIndex = node
         ? list.indexOf(node)
         : context.currentNode
@@ -207,13 +208,13 @@ export function createTransformContext(
       if (__DEV__ && removalIndex < 0) {
         throw new Error(`node being removed is not a child of current parent`)
       }
-      if (!node || node === context.currentNode) {
+      if (!node || node === context.currentNode) { // 移除当前节点
         // current node removed
         context.currentNode = null
         context.onNodeRemoved()
       } else {
         // sibling node removed
-        if (context.childIndex > removalIndex) {
+        if (context.childIndex > removalIndex) { // 如果移除的节点在当前节点之前，则需要修改当前节点指针childIndex属性的值
           context.childIndex--
           context.onNodeRemoved()
         }

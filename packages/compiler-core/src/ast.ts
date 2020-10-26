@@ -289,7 +289,7 @@ export interface IfNode extends Node {
    * <div v-else>others</div>
    * 此时，上面的三个节点都会放入branches数组中，类型是if分支节点。
    * 所以，可以认为IfNode节点是一个收集v-if、v-else-if、v-else所有关联分支的一个虚拟节点，
-   * branches数组中的节点才是真实的节点
+   * branches数组中的节点的children属性中才是真实的的节点
    */
   branches: IfBranchNode[]
   codegenNode?: IfConditionalExpression | CacheExpression // <div v-if v-once>
@@ -299,8 +299,9 @@ export interface IfBranchNode extends Node {
   type: NodeTypes.IF_BRANCH
   // 对于v-if和v-else-if指令，该属性为DirectiveNode接口中的exp属性的值，对于v-else，为undefined
   condition: ExpressionNode | undefined // else
-  // 具体值，可查看compiler-core/src/transforms/vIf.ts --> createIfBranch()方法
+  // 具体值可查看compiler-core/src/transforms/vIf.ts --> createIfBranch()方法
   children: TemplateChildNode[]
+  // key特性，普通特性或指令特性
   userKey?: AttributeNode | DirectiveNode
 }
 

@@ -45,6 +45,7 @@ export const transformIf = createStructuralDirectiveTransform(
       // rendered at the same depth
       const siblings = context.parent!.children // 由于调用了context.replaceNode()方法，已经将原节点替换为ifNode节点
       let i = siblings.indexOf(ifNode) // ifNode的下标位置
+      // Todo 为什么需要key？猜测：可能由于临近的v-if节点在patch时会有问题吧
       let key = 0
       while (i-- >= 0) {
         const sibling = siblings[i]
@@ -56,15 +57,14 @@ export const transformIf = createStructuralDirectiveTransform(
       // Exit callback. Complete the codegenNode when all children have been
       // transformed.
       return () => {
-        // Todo isRoot的作用是什么？猜测：这里的isRoot用于确定branch参数是v-if指令还是v-else-if/v-else指令，如果isRoot为true，则是v-if指令，如果为false，则是v-else-if/v-else指令
-        if (isRoot) {
+        if (isRoot) { // v-if
           // Todo 猜测：codegenNode的作用是用于生成相应的编译字符串
           ifNode.codegenNode = createCodegenNodeForBranch(
             branch,
             key,
             context
           ) as IfConditionalExpression
-        } else { // Todo 这个分支的代码不知道是干嘛的
+        } else { // v-else-if / v-else
           // attach this branch's codegen node to the v-if root.
           const parentCondition = getParentCondition(ifNode.codegenNode!)
           parentCondition.alternate = createCodegenNodeForBranch(
@@ -214,8 +214,8 @@ function createCodegenNodeForBranch(
   branch: IfBranchNode,
   keyIndex: number,
   context: TransformContext
-): IfConditionalExpression | BlockCodegenNode {
-  if (branch.condition) {
+): IfConditionalExpression | BlockCodegenNode {``
+  if (branch.condition) { // v-if / v-else-if
     return createConditionalExpression(
       branch.condition,
       createChildrenCodegenNode(branch, keyIndex, context),
@@ -226,7 +226,7 @@ function createCodegenNodeForBranch(
         'true'
       ])
     ) as IfConditionalExpression
-  } else {
+  } else { // v-else
     return createChildrenCodegenNode(branch, keyIndex, context)
   }
 }
@@ -237,16 +237,18 @@ function createChildrenCodegenNode(
   context: TransformContext
 ): BlockCodegenNode {
   const { helper } = context
+  // key特性
   const keyProperty = createObjectProperty(
     `key`,
     createSimpleExpression(`${keyIndex}`, false, locStub, true)
   )
   const { children } = branch
   const firstChild = children[0]
+  // 是否需要使用fragment包裹，只要子元素多于1个或者仅有的子元素不是元素节点，就需要。 Todo fragment是什么？
   const needFragmentWrapper =
     children.length !== 1 || firstChild.type !== NodeTypes.ELEMENT
   if (needFragmentWrapper) {
-    if (children.length === 1 && firstChild.type === NodeTypes.FOR) {
+    if (children.length === 1 && firstChild.type === NodeTypes.FOR) { // Todo 应该是v-if和v-for在同一元素上吧
       // optimize away nested fragments when child is a ForNode
       const vnodeCall = firstChild.codegenNode!
       injectProp(vnodeCall, keyProperty, context)
