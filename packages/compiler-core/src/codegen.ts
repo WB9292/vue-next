@@ -513,6 +513,7 @@ function isText(n: string | CodegenNode) {
   )
 }
 
+// 生成数组形式的字符串
 function genNodeListAsArray(
   nodes: (string | CodegenNode | TemplateChildNode[])[],
   context: CodegenContext
@@ -527,6 +528,7 @@ function genNodeListAsArray(
   context.push(`]`)
 }
 
+// 根据nodes生成类似"a, [1], b"这种形式，这种形式可能作为数组的内容，也可能是函数的参数，也可能是利用逗号运算符
 function genNodeList(
   nodes: (string | symbol | CodegenNode | TemplateChildNode[])[],
   context: CodegenContext,
@@ -714,6 +716,7 @@ function genComment(node: CommentNode, context: CodegenContext) {
   }
 }
 
+// 生成创建vnode对象的代码
 function genVNodeCall(node: VNodeCall, context: CodegenContext) {
   const { push, helper, pure } = context
   const {
@@ -759,7 +762,7 @@ function genNullableArgs(args: any[]): CallExpression['arguments'] {
   return args.slice(0, i + 1).map(arg => arg || `null`)
 }
 
-// JavaScript
+// JavaScript 生成node.callee对应的方法调用
 function genCallExpression(node: CallExpression, context: CodegenContext) {
   const { push, helper, pure } = context
   const callee = isString(node.callee) ? node.callee : helper(node.callee)
@@ -770,6 +773,7 @@ function genCallExpression(node: CallExpression, context: CodegenContext) {
   genNodeList(node.arguments, context)
   push(`)`)
 }
+
 
 function genObjectExpression(node: ObjectExpression, context: CodegenContext) {
   const { push, indent, deindent, newline } = context
@@ -805,6 +809,7 @@ function genArrayExpression(node: ArrayExpression, context: CodegenContext) {
   genNodeListAsArray(node.elements, context)
 }
 
+// 生成一个箭头函数
 function genFunctionExpression(
   node: FunctionExpression,
   context: CodegenContext
@@ -831,7 +836,7 @@ function genFunctionExpression(
     push(`{`)
     indent()
   }
-  if (returns) {
+  if (returns) { // Todo returns和body只能存在一个？body不可能返回？是不是body中就有returns？
     if (newline) {
       push(`return `)
     }

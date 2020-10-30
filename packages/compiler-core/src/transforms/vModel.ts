@@ -24,6 +24,7 @@ export const transformModel: DirectiveTransform = (dir, node, context) => {
     return createTransformProps()
   }
 
+  // Todo 什么情况下exp.type不是简单表达式？
   const expString =
     exp.type === NodeTypes.SIMPLE_EXPRESSION ? exp.content : exp.loc.source
 
@@ -46,6 +47,7 @@ export const transformModel: DirectiveTransform = (dir, node, context) => {
     return createTransformProps()
   }
 
+  // Todo v-model的指令参数是干嘛的？
   const propName = arg ? arg : createSimpleExpression('modelValue', true)
   const eventName = arg
     ? isStaticExp(arg)

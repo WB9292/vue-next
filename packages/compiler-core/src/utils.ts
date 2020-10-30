@@ -56,6 +56,7 @@ export const isSimpleIdentifier = (name: string): boolean =>
   !nonIdentifierRE.test(name)
 
 const memberExpRE = /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*|\[[^\]]+\])*$/
+// Todo 应该是"hello"、"hello.world"、"hello[world]"形式的字符串吧，暂不研究
 export const isMemberExpression = (path: string): boolean => {
   if (!path) return false
   return memberExpRE.test(path.trim())
@@ -235,6 +236,12 @@ export function isSlotOutlet(
   return node.type === NodeTypes.ELEMENT && node.tagType === ElementTypes.SLOT
 }
 
+/**
+ * Todo 猜测：该方法应该是将prop插入node的属性列表中
+ * @param node
+ * @param prop
+ * @param context
+ */
 export function injectProp(
   node: VNodeCall | RenderSlotCall,
   prop: Property,

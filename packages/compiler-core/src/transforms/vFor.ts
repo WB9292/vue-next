@@ -81,6 +81,7 @@ export const transformFor = createStructuralDirectiveTransform(
       const isStableFragment =
         // Todo 什么情况下，source不是简单表达式？
         forNode.source.type === NodeTypes.SIMPLE_EXPRESSION &&
+        // Todo 创建forNode.source时，isConstant参数为false，什么情况下会被设置为true
         forNode.source.isConstant
       const fragmentFlag = isStableFragment
         ? PatchFlags.STABLE_FRAGMENT
@@ -229,7 +230,7 @@ export function processFor(
   context.replaceNode(forNode)
 
   // bookkeeping
-  // Todo 作用是什么？
+  // Todo 作用是什么？好像是在compiler-dom/src/transforms/vSlot.ts --> buildSlots()方法中有用到
   scopes.vFor++
   // Todo 正常流程中，context.prefixIdentifiers为false，所以暂不研究这里的分支
   if (!__BROWSER__ && context.prefixIdentifiers) {

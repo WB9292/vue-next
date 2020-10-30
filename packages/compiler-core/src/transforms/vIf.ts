@@ -58,7 +58,6 @@ export const transformIf = createStructuralDirectiveTransform(
       // transformed.
       return () => {
         if (isRoot) { // v-if
-          // Todo 猜测：codegenNode的作用是用于生成相应的编译字符串
           ifNode.codegenNode = createCodegenNodeForBranch(
             branch,
             key,
@@ -128,7 +127,7 @@ export function processIf(
     // 当前节点在父元素中的位置
     let i = siblings.indexOf(node)
     // 为什么要这么判断，这样的话i在while循环里可能会是-1或-2
-    // 答：注意while循环中最后的break，也就是说，如果v-else-if或v-else指令之前没有注释或者空白符，则只会循环一次
+    // 答：注意while循环中最后的break，也就是说，如果v-else-if或v-else对应的节点之前没有注释或者空白符，则只会循环一次
     // 对于i-- >= -1的判断条件，如果node不在siblings中，则初始情况下，i就是-1，此时也会运行while循环（因为i--，先比较，后--，也就是第一步i >= -1，第二步i = i - 1），
     // 然后，就可以报错
     while (i-- >= -1) {
@@ -175,6 +174,7 @@ export function processIf(
           }
         }
 
+        // sibling是IfNode节点
         sibling.branches.push(branch)
         const onExit = processCodegen && processCodegen(sibling, branch, false)
         // since the branch was removed, it will not be traversed.
@@ -214,7 +214,7 @@ function createCodegenNodeForBranch(
   branch: IfBranchNode,
   keyIndex: number,
   context: TransformContext
-): IfConditionalExpression | BlockCodegenNode {``
+): IfConditionalExpression | BlockCodegenNode {
   if (branch.condition) { // v-if / v-else-if
     return createConditionalExpression(
       branch.condition,

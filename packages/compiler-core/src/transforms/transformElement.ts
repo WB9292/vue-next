@@ -228,6 +228,7 @@ export function resolveComponentType(
   const isProp =
     // findProp(node, 'is')：is / :is / v-bind:is
     // findDir(node, 'is')：v-is
+    // :is的方式与component标签配合使用
     node.tag === 'component' ? findProp(node, 'is') : findDir(node, 'is')
   if (isProp) {
     const exp =
@@ -459,6 +460,9 @@ export function buildProps(
         continue
       }
 
+      // 正常流程中的directiveTransforms：
+      // compiler-dom/src/index.ts --> DOMDirectiveTransforms对象（优先级高）
+      // compiler-core/src/compile.ts --> getBaseTransformPreset()方法（优先级低）
       const directiveTransform = context.directiveTransforms[name]
       if (directiveTransform) {
         // has built-in directive transform.

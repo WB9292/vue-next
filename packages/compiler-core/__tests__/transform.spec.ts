@@ -96,6 +96,7 @@ describe('compiler: transform', () => {
     expect(ast.children.length).toBe(2)
     const newElement = ast.children[0] as ElementNode
     expect(newElement.tag).toBe('p')
+    // 根节点、div元素、p元素的子文本hello、span元素
     expect(spy).toHaveBeenCalledTimes(4)
     // should traverse the children of replaced node
     expect(spy.mock.calls[2][0]).toBe(newElement.children[0])

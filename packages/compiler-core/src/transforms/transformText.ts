@@ -26,7 +26,7 @@ export const transformText: NodeTransform = (node, context) => {
       let currentContainer: CompoundExpressionNode | undefined = undefined
       let hasText = false
 
-      // 将children所有连续的类文本节点（参考isText()方法）合并到单个组合表达式节点中
+      // 将children所有连续的类文本节点（参考isText()方法，其实，也就是插值表达式和纯文本）合并到单个组合表达式节点中
       for (let i = 0; i < children.length; i++) {
         const child = children[i]
         // 如果是插值节点或者纯文本节点
@@ -81,6 +81,7 @@ export const transformText: NodeTransform = (node, context) => {
           const callArgs: CallExpression['arguments'] = []
           // createTextVNode defaults to single whitespace, so if it is a
           // single space the code could be an empty call to save bytes.
+          // createTextVNode方法的第一个参数的默认值就是单个空白符' '，所以当内容是单个空白符时，不必传入
           if (child.type !== NodeTypes.TEXT || child.content !== ' ') {
             callArgs.push(child)
           }

@@ -237,7 +237,11 @@ export function setBlockTracking(value: number) {
  * Create a block root vnode. Takes the same exact arguments as `createVNode`.
  * A block root keeps track of dynamic nodes within the block in the
  * `dynamicChildren` array.
- *
+ * Todo 猜测：创建一个虚拟的块对元素进行包裹，比如Vue3现在支持，组件不需要通过一个根元素进行包裹，所以这就需要一个块来对模板中的多个元素进行包裹：
+ * <template>
+ *   <div>hello</div>
+ *   <div>world</div>
+ * </template>
  * @private
  */
 export function createBlock(

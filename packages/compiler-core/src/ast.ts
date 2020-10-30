@@ -45,16 +45,21 @@ export const enum NodeTypes {
   // v-if、v-else-if、v-else对应的真实节点，详情可查看IfNode接口中的相关注释
   IF_BRANCH,
   FOR,
+  // 文本或者多个连续文本组成的COMPOUND_EXPRESSION类型的节点所生成的文本调用类型
   TEXT_CALL,
   // codegen
   VNODE_CALL,
-  // Todo 猜测：最终会被编译为方法调用的表达式
+  // 最终会被编译为函数调用，函数名就是该类型节点中的callee属性，函数参数就是arguments所生成的
   JS_CALL_EXPRESSION,
+  // 最终会被编译为一个对象
   JS_OBJECT_EXPRESSION,
   // Todo 猜测：代表标签上（可能不一定是标签上）的特性的键值对属性的表示
   JS_PROPERTY,
+  // 会根据elements生成一个数组，数组内部的项根据elements中项的不同类型生成不同类型的值
   JS_ARRAY_EXPRESSION,
+  // 在最终的源代码中会生成一个箭头函数
   JS_FUNCTION_EXPRESSION,
+  // 最终的源代码会生成test ? 'yes' : 'no'这种形式
   JS_CONDITIONAL_EXPRESSION,
   JS_CACHE_EXPRESSION,
 
@@ -122,14 +127,20 @@ export type TemplateChildNode =
 export interface RootNode extends Node {
   type: NodeTypes.ROOT
   children: TemplateChildNode[]
+  // 生成当前虚拟dom树需要用到的帮助函数
   helpers: symbol[]
+  // 生成当前虚拟dom树需要用到的组件，值为解析模板字符串时解析出的原标签
   components: string[]
+  // 生成当前虚拟dom树需要用到的指令，保存的是DirectiveNode节点中的name属性的值
   directives: string[]
   hoists: (JSChildNode | null)[]
   imports: ImportItem[]
+  // 记录当前根节点中需要缓存的节点的个数
   cached: number
   temps: number
   ssrHelpers?: symbol[]
+  // 这里对codegenNode的解释适用于所有的节点类型：有些节点类型只是代表解析（parse）和转换（transform）之后的节点，而在生成代码（codegen）的阶段
+  // 需要的信息无法通过这种节点完全提供，此时，就需要将生成代码（codegen）阶段需要的信息放入codegenNode属性中
   codegenNode?: TemplateChildNode | JSChildNode | BlockStatement | undefined
 }
 
@@ -226,9 +237,10 @@ export interface DirectiveNode extends Node {
   parseResult?: ForParseResult
 }
 
-// Todo 简单表达式到底是什么？
+// 在最终的源代码中，如果isStatic为true，会使用JSON.stringify对content进行处理，否则，直接将content加入源码中，这样content对应的表达式就可以在运行时运行了
 export interface SimpleExpressionNode extends Node {
   type: NodeTypes.SIMPLE_EXPRESSION
+  // 表达式的内容
   content: string
   // 是否是静态内容，也就是说，content对应的内容在运行时是否需要运行
   isStatic: boolean
@@ -335,6 +347,7 @@ export type TemplateTextChildNode =
   | InterpolationNode
   | CompoundExpressionNode
 
+// Todo 生成虚拟dom对象的节点表示
 export interface VNodeCall extends Node {
   type: NodeTypes.VNODE_CALL
   tag: string | symbol | CallExpression
@@ -370,10 +383,12 @@ export type JSChildNode =
   | AssignmentExpression
   | SequenceExpression
 
+// js方法调用的表达式
 export interface CallExpression extends Node {
   type: NodeTypes.JS_CALL_EXPRESSION
   // 该属性用于存储标识调用当前表达式的方法，也就是，当需要处理该节点时，使用哪个方法。详情可查看compiler-core/src/runtimeHelpers.ts --> helperNameMap对象映射
   callee: string | symbol
+  // 方法的参数
   arguments: (
     | string
     | symbol
@@ -383,6 +398,7 @@ export interface CallExpression extends Node {
     | TemplateChildNode[])[]
 }
 
+// 最终会生成一个对象
 export interface ObjectExpression extends Node {
   type: NodeTypes.JS_OBJECT_EXPRESSION
   properties: Array<Property>
@@ -395,15 +411,21 @@ export interface Property extends Node {
 }
 
 // Todo CompoundExpressionNode和ArrayExpression的区别是什么？
+//  个人理解：CompoundExpressionNode类型的值在生成源代码时，是直接将其children属性放入源代码中，所以children中会有" + "形式的字符串，就是为了完成字符串拼接，而ArrayExpression是直接生成一个数组
+// 会根据elements生成一个数组，数组内部的项根据elements中项的不同类型生成不同类型的值
 export interface ArrayExpression extends Node {
   type: NodeTypes.JS_ARRAY_EXPRESSION
   elements: Array<string | JSChildNode>
 }
 
+// 在最终的源代码中会生成一个箭头函数
 export interface FunctionExpression extends Node {
   type: NodeTypes.JS_FUNCTION_EXPRESSION
+  // 函数的参数
   params: ExpressionNode | string | (ExpressionNode | string)[] | undefined
+  // 函数的返回值
   returns?: TemplateChildNode | TemplateChildNode[] | JSChildNode
+  // 函数体
   body?: BlockStatement | IfStatement
   newline: boolean
   /**
@@ -413,18 +435,30 @@ export interface FunctionExpression extends Node {
   isSlot: boolean
 }
 
+// 最终的源代码会生成test ? 'yes' : 'no'这种形式
 export interface ConditionalExpression extends Node {
   type: NodeTypes.JS_CONDITIONAL_EXPRESSION
+  // 生成测试条件的节点
   test: JSChildNode
+  // Todo 由什么生成的？v-if / v-else-if？猜测：好像是的
+  // Todo 好像是v-if / v-else-if为真时运行的代码
+  // Todo 或者是test条件成立时执行的代码
   consequent: JSChildNode
+  // Todo 由什么生成的？ v-else？猜测：好像是的
+  // Todo 好像是v-else是运行的代码
+  // Todo test条件不成立时执行的代码
   alternate: JSChildNode
   newline: boolean
 }
 
+// 缓存表达式，在生成源代码时，只会通过value创建一次结果值，然后就会将结果值放入缓存中，之后使用时，就会使用缓存里的值
 export interface CacheExpression extends Node {
   type: NodeTypes.JS_CACHE_EXPRESSION
+  // 缓存的结果值会被放入一个数组中，index就是结果值的下标位置，一个template字符串中可能存在多个CacheExpression对象，所以需要各自记录下标位置
   index: number
+  // 生成最终结果值的节点
   value: JSChildNode
+  // 是否是虚拟dom对象
   isVNode: boolean
 }
 
