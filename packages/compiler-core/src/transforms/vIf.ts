@@ -129,7 +129,7 @@ export function processIf(
     // 为什么要这么判断，这样的话i在while循环里可能会是-1或-2
     // 答：注意while循环中最后的break，也就是说，如果v-else-if或v-else对应的节点之前没有注释或者空白符，则只会循环一次
     // 对于i-- >= -1的判断条件，如果node不在siblings中，则初始情况下，i就是-1，此时也会运行while循环（因为i--，先比较，后--，也就是第一步i >= -1，第二步i = i - 1），
-    // 然后，就可以报错
+    // 然后，就可以报错。这里是找到离当前节点最近的IfNode。
     while (i-- >= -1) {
       const sibling = siblings[i]
       if (__DEV__ && sibling && sibling.type === NodeTypes.COMMENT) { // 注释
@@ -231,6 +231,7 @@ function createCodegenNodeForBranch(
   }
 }
 
+// 根据branch生成IfNode的codegenNode中的consequent/alternate
 function createChildrenCodegenNode(
   branch: IfBranchNode,
   keyIndex: number,
@@ -246,7 +247,7 @@ function createChildrenCodegenNode(
   const firstChild = children[0]
   // 是否需要使用fragment包裹，只要子元素多于1个或者仅有的子元素不是元素节点，就需要。 Todo fragment是什么？
   const needFragmentWrapper =
-    children.length !== 1 || firstChild.type !== NodeTypes.ELEMENT
+    children.length !== 1 || firstChild.type !== NodeTypes.ELEMENT // Todo 为什么只需要判断第一个节点不是ELEMENT就行了？
   if (needFragmentWrapper) {
     if (children.length === 1 && firstChild.type === NodeTypes.FOR) { // Todo 应该是v-if和v-for在同一元素上吧
       // optimize away nested fragments when child is a ForNode
@@ -313,6 +314,7 @@ function isSameKey(
   return true
 }
 
+// 该方法是获取第一个没有不成立代码块的节点
 function getParentCondition(
   node: IfConditionalExpression | CacheExpression
 ): IfConditionalExpression {

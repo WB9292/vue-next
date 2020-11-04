@@ -406,7 +406,7 @@ export function traverseNode(
     // 这里处理的只是v-if指令的子元素，对于v-else-if和v-else来说，是在compiler-core/src/transforms/vIf.ts中处理的，可查看该文件中调用traverseNode()方法的相关代码
     case NodeTypes.IF:
       // 正如在compiler-core/src/ast.ts --> IfNode接口中的注释，对于NodeTypes.IF类型的节点，
-      // 其对应的真正节点在branches数组中
+      // 其对应的真正节点在branches数组的children中
       for (let i = 0; i < node.branches.length; i++) {
         traverseNode(node.branches[i], context)
       }

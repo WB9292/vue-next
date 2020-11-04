@@ -544,7 +544,7 @@ function parseTag(
       hasVIs ||
       isCoreComponent(tag) ||
       (options.isBuiltInComponent && options.isBuiltInComponent(tag)) ||
-      /^[A-Z]/.test(tag) ||
+      /^[A-Z]/.test(tag) || // 首字母大写的标签认为是组件
       tag === 'component'
     ) {
       tagType = ElementTypes.COMPONENT
