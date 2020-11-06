@@ -245,7 +245,7 @@ function createChildrenCodegenNode(
   )
   const { children } = branch
   const firstChild = children[0]
-  // 是否需要使用fragment包裹，只要子元素多于1个或者仅有的子元素不是元素节点，就需要。 Todo fragment是什么？
+  // 是否需要使用fragment包裹，只要子元素多于1个或者仅有的子元素不是元素节点，就需要。 Todo fragment是什么？猜测：可能是用于包裹没有父元素的节点
   const needFragmentWrapper =
     children.length !== 1 || firstChild.type !== NodeTypes.ELEMENT // Todo 为什么只需要判断第一个节点不是ELEMENT就行了？
   if (needFragmentWrapper) {

@@ -349,7 +349,7 @@ export function buildProps(
         hasRef = true
       }
       // skip :is on <component>
-      // Todo is是在哪里处理的？
+      // is是在哪里处理的？答：name是特性名，在compiler-core/src/parse.ts --> parseAttribute()方法中解析
       if (name === 'is' && tag === 'component') {
         continue
       }

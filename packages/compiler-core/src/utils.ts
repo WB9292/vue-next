@@ -249,7 +249,8 @@ export function injectProp(
 ) {
   let propsWithInjection: ObjectExpression | CallExpression
   const props =
-    node.type === NodeTypes.VNODE_CALL ? node.props : node.arguments[2]
+    node.type === NodeTypes.VNODE_CALL ? node.props : node.arguments[2] // Todo node.arguments[]的第三个参数是什么？
+  // Todo 难道标签上的prop只有字符串、JS_OBJECT_EXPRESSION、JS_OBJECT_EXPRESSION或单个v-bind绑定的表达式？单个v-bind绑定的表达式是什么类型？
   if (props == null || isString(props)) {
     propsWithInjection = createObjectExpression([prop])
   } else if (props.type === NodeTypes.JS_CALL_EXPRESSION) {
@@ -266,7 +267,7 @@ export function injectProp(
   } else if (props.type === NodeTypes.JS_OBJECT_EXPRESSION) {
     let alreadyExists = false
     // check existing key to avoid overriding user provided keys
-    if (prop.key.type === NodeTypes.SIMPLE_EXPRESSION) {
+    if (prop.key.type === NodeTypes.SIMPLE_EXPRESSION) { // Todo 这个不知道什么逻辑
       const propKeyName = prop.key.content
       alreadyExists = props.properties.some(
         p =>
