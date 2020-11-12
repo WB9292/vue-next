@@ -230,7 +230,7 @@ export function processFor(
   context.replaceNode(forNode)
 
   // bookkeeping
-  // Todo 作用是什么？好像是在compiler-dom/src/transforms/vSlot.ts --> buildSlots()方法中有用到
+  // Todo 作用是什么？好像是在compiler-dom/src/transforms/vSlot.ts --> ()方法中有用到
   scopes.vFor++
   // Todo 正常流程中，context.prefixIdentifiers为false，所以暂不研究这里的分支
   if (!__BROWSER__ && context.prefixIdentifiers) {
@@ -267,6 +267,7 @@ const forIteratorRE = /,([^,\}\]]*)(?:,([^,\}\]]*))?$/
 const stripParensRE = /^\(|\)$/g
 
 // 例子：v-for="(value, name, index) in object"
+// 另外，由测试用例可知，也支持v-for="value, key, index in items"这种形式的写法
 export interface ForParseResult {
   // 上例中"object"的相关信息
   source: ExpressionNode

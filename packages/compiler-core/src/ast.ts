@@ -347,7 +347,7 @@ export type TemplateTextChildNode =
   | InterpolationNode
   | CompoundExpressionNode
 
-// Todo 生成虚拟dom对象的节点表示
+// 生成虚拟dom对象的节点表示
 export interface VNodeCall extends Node {
   type: NodeTypes.VNODE_CALL
   tag: string | symbol | CallExpression
